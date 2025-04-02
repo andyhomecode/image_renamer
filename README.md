@@ -62,9 +62,13 @@ image-renamer/
 
 python main.py
 
-- Use ← and → arrow keys to navigate images.
-- Each image triggers voice input.
-- When satisfied, turn off test mode in `main.py` to apply real renaming.
+- Use ← and → arrow keys to navigate between images.
+- For each image, a floating overlay window will appear.
+- You can type a description, and optionally use a persistent prefix.
+- Press `L` to toggle including/excluding the location in the filename.
+- Press `P` to toggle using a persistent prefix.
+- Press `Enter` to confirm and rename the image (or preview if in test mode).
+- When satisfied, turn off `test_mode` in `main.py` to apply real renaming.
 
 ---
 
@@ -74,6 +78,17 @@ python main.py
 - Falls back to file mod time if no EXIF date
 - Falls back to empty city if no GPS
 
+- ## 🎮 Keyboard Controls
+
+| Key     | Action                          |
+|---------|---------------------------------|
+| ← / →   | Move to previous/next image     |
+| `L`     | Toggle location ON/OFF          |
+| `P`     | Toggle prefix ON/OFF            |
+| Typing  | Enter image description         |
+| `Enter` | Confirm and rename image        |
+
+
 ---
 
 ## 📌 Future Features
@@ -81,3 +96,5 @@ python main.py
 - Undo renames
 - Batch mode
 - Auto-skip already processed files
+- ANDY: Consider pre-processing date and location into .csv files to speed categorization.
+- ANDY: consider pre-processing image categorization using imagenet or LLM to identify people, major things, to speed categorization
