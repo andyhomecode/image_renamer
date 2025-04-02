@@ -83,8 +83,8 @@ python main.py
 | Key     | Action                          |
 |---------|---------------------------------|
 | ← / →   | Move to previous/next image     |
-| `L`     | Toggle location ON/OFF          |
-| `P`     | Toggle prefix ON/OFF            |
+| `F1`     | Toggle location ON/OFF          |
+| `F2`     | Toggle prefix ON/OFF            |
 | Typing  | Enter image description         |
 | `Enter` | Confirm and rename image        |
 
