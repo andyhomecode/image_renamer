@@ -68,17 +68,10 @@ class AutoImageRenamer(ImageViewer):
 
         while self.running:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RIGHT:
-                        self.index = (self.index + 1) % len(self.images)
-                        self.show_image()
-                        self.handle_current_image()
-                    elif event.key == pygame.K_LEFT:
-                        self.index = (self.index - 1) % len(self.images)
-                        self.show_image()
-                        self.handle_current_image()
+               if event.type == pygame.QUIT:
+                   self.running = False
+               elif self.handle_navigation_events(event):
+                   self.handle_current_image()
 
         pygame.quit()
 
