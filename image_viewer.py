@@ -23,25 +23,18 @@ class ImageViewer:
 
     def get_current_image_path(self):
         return self.images[self.index]
-
-    def run(self):
-        pygame.init()
-        self.screen = pygame.display.set_mode((800, 600))
-        self.show_image()
-
-        while self.running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RIGHT:
-                        self.index = (self.index + 1) % len(self.images)
-                        self.show_image()
-                    elif event.key == pygame.K_LEFT:
-                        self.index = (self.index - 1) % len(self.images)
-                        self.show_image()
-
-        pygame.quit()
+        
+    def handle_navigation_events(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RIGHT:
+                self.index = (self.index + 1) % len(self.images)
+                self.show_image()
+                return True
+            elif event.key == pygame.K_LEFT:
+                self.index = (self.index - 1) % len(self.images)
+                self.show_image()
+                return True
+        return False
 
 if __name__ == "__main__":
     viewer = ImageViewer("./photos")  # Change this to your image folder
