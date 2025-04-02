@@ -18,9 +18,9 @@ class OverlayInput:
                 self.done = True
             elif event.key == pygame.K_BACKSPACE:
                 self.description = self.description[:-1]
-            elif event.key == pygame.K_l:
+            elif event.key == pygame.K_F1:
                 self.include_location = not self.include_location
-            elif event.key == pygame.K_p:
+            elif event.key == pygame.K_F2:
                 self.use_prefix = not self.use_prefix
             elif event.unicode and event.unicode.isprintable():
                 self.description += event.unicode
@@ -33,7 +33,7 @@ class OverlayInput:
             f"Location: {'ON' if self.include_location else 'OFF'} - {self.city if self.include_location else ''}",
             f"Prefix: {'ON' if self.use_prefix else 'OFF'} - {self.prefix if self.use_prefix else ''}",
             f"Description: {self.description}",
-            "[L] Toggle Location   [P] Toggle Prefix   [Enter] Confirm"
+            "[F1] Toggle Location   [F2] Toggle Prefix   [Enter] Confirm"
         ]
 
         for i, line in enumerate(lines):
