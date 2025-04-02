@@ -47,12 +47,12 @@ Make sure the `model/` folder sits next to your Python files.
 
 image-renamer/
 ├── main.py
-├── image_viewer.py
-├── exif_reader.py
-├── geolocator.py
-├── voice_input.py
-├── renamer.py
-├── requirements.txt
+├── image_viewer.py  # worked straight from GPT
+├── exif_reader.py  # worked straight from GPT
+├── geolocator.py    # worked straight from GPT
+├── voice_input.py   # worked straight from GPT
+├── renamer.py		# worked straight from GPT 100% functional!!!
+├── requirements.txt   # worked straight from GPT
 ├── model/                  # Vosk model folder
 └── photos/                 # Place your images here
 

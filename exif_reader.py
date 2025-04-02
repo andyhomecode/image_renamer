@@ -37,6 +37,6 @@ def get_gps_coordinates(image_path: Path):
 
 # For testing
 if __name__ == "__main__":
-    test_path = Path("./photos/example.jpg")
+    test_path = Path("./photos/IMG_7776.jpg")
     print("Date:", get_image_date(test_path))
     print("GPS:", get_gps_coordinates(test_path))

@@ -1,1 +1,6 @@
-"pygame\npillow\npiexif\ngeopy\nvosk\nsounddevice" 
+pygame
+pillow
+piexif
+geopy
+vosk
+sounddevice
