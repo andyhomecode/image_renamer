@@ -7,20 +7,27 @@ from renamer import build_new_filename  # Import the function
 from exif_reader import get_image_date, get_gps_coordinates  # Import GPS and date extraction
 from geolocator import reverse_geocode  # Import reverse geocoding
 
+# Global variables for prefix and location toggle
+global_prefix = ""
+global_include_location = True
+global_use_prefix = True
+
 class ImageViewer:
     def __init__(self, folder_path):
+        global global_prefix, global_include_location, global_use_prefix
         self.folder = Path(folder_path)
         self.images = sorted([f for f in self.folder.iterdir() if f.suffix.lower() in ['.jpg', '.jpeg', '.png']])
         self.index = 0
         self.screen = None
         self.running = True
         self.description = ""
-        self.prefix = ""
-        self.include_location = True
-        self.use_prefix = True
+        self.prefix = global_prefix  # Initialize with global prefix
+        self.include_location = global_include_location  # Initialize with global location toggle
+        self.use_prefix = global_use_prefix  # Initialize with global prefix toggle
         self.done = False
         self.city = ""  # Placeholder for city name
         self.date = None  # Placeholder for image date
+        self.editing_field = None  # Tracks which field is being edited ("prefix", "location", or "description")
 
     def show_image(self):
         img_path = self.images[self.index]
@@ -40,7 +47,7 @@ class ImageViewer:
         self.screen.blit(image, image_rect)
 
         # Draw overlay bar
-        font = pygame.font.SysFont(None, 12)
+        font = pygame.font.SysFont(None, 16) 
         text_surface = font.render(f"{img_path.name} ({self.index+1}/{len(self.images)})", True, (255, 255, 255))
         self.screen.blit(text_surface, (10, 10))
 
@@ -52,54 +59,91 @@ class ImageViewer:
         final_name = build_new_filename(
             self.date or datetime.now(),  # Use current date if not set
             self.city if self.include_location else "",
-            f"{self.prefix} {self.description}".strip(),
+            f"{self.prefix if self.use_prefix else ''} {self.description}".strip(),
             ".jpg"  # Default extension for display purposes
         )
 
         # Translucent background
-        overlay_rect = pygame.Rect(10, 30, self.screen.get_width() - 20, 200)
+        overlay_rect = pygame.Rect(10, 30, self.screen.get_width() - 20, 250)
         overlay_surface = pygame.Surface((overlay_rect.width, overlay_rect.height), pygame.SRCALPHA)
         overlay_surface.fill((0, 0, 0, 150))  # Black with 150 alpha (translucent)
         self.screen.blit(overlay_surface, (overlay_rect.x, overlay_rect.y))
 
         # Overlay text
         lines = [
-            f"Description: {self.description}",
-            f"Prefix: {'ON' if self.use_prefix else 'OFF'} - {self.prefix if self.use_prefix else ''}",
-            f"Location: {'ON' if self.include_location else 'OFF'} - {self.city if self.include_location else ''}",
+            f"F4 Prefix {'[HIDDEN]' if not self.use_prefix else ''} {'[EDITING]' if self.editing_field == 'prefix' else ''}: {self.prefix}",
+            f"F1 Location {'[HIDDEN]' if not self.include_location else ''} {'[EDITING]' if self.editing_field == 'location' else ''}: {self.city}",
+            f"Description {'[EDITING]' if self.editing_field == 'description' else ''}: {self.description}",
             f"Final Name: {final_name}",
-            "[F1] Toggle Location   [F2] Toggle Prefix   [Enter] Confirm"
+            "[Shift+F4] Show/Hide Prefix   [Shift+F1] Show/Hide Location   [Enter] Confirm"
         ]
 
-        font = pygame.font.SysFont(None, 28)
+        font = pygame.font.SysFont(None, int(14 * 1.2))  # Increase font size by 20%
         for i, line in enumerate(lines):
             text_surface = font.render(line, True, (255, 255, 255))
-            self.screen.blit(text_surface, (20, 40 + i * 30))
+            self.screen.blit(text_surface, (20, 40 + i * 36))  # Adjust line spacing proportionally
 
     def handle_event(self, event):
+        global global_prefix, global_include_location, global_use_prefix
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_RETURN:
-                self.done = True
-            elif event.key == pygame.K_BACKSPACE:
-                self.description = self.description[:-1]
-            elif event.key == pygame.K_F1:
-                self.include_location = not self.include_location
-            elif event.key == pygame.K_F2:
-                self.use_prefix = not self.use_prefix
-            elif event.key == pygame.K_RIGHT:
-                self.index = (self.index + 1) % len(self.images)
-                self.load_image_metadata()  # Reload metadata for the new image
-                self.show_image()
-                self.done = False
-                self.description = ""
-            elif event.key == pygame.K_LEFT:
-                self.index = (self.index - 1) % len(self.images)
-                self.load_image_metadata()  # Reload metadata for the new image
-                self.show_image()
-                self.done = False
-                self.description = ""
-            elif event.unicode and event.unicode.isprintable():
-                self.description += event.unicode
+            if self.editing_field == "prefix":  # Handle prefix editing
+                if event.key == pygame.K_RETURN:
+                    self.editing_field = None  # Stop editing
+                    global_prefix = self.prefix  # Update global prefix
+                elif event.key == pygame.K_BACKSPACE:
+                    self.prefix = self.prefix[:-1]
+                elif event.unicode and event.unicode.isprintable():
+                    self.prefix += event.unicode
+            elif self.editing_field == "location":  # Handle location editing
+                if event.key == pygame.K_RETURN:
+                    self.editing_field = None  # Stop editing
+                elif event.key == pygame.K_BACKSPACE:
+                    self.city = self.city[:-1]
+                elif event.unicode and event.unicode.isprintable():
+                    self.city += event.unicode
+            elif self.editing_field == "description":  # Handle description editing
+                if event.key == pygame.K_RETURN:
+                    self.editing_field = None  # Stop editing
+                elif event.key == pygame.K_BACKSPACE:
+                    self.description = self.description[:-1]
+                elif event.unicode and event.unicode.isprintable():
+                    self.description += event.unicode
+            else:  # Handle other events
+                if event.key == pygame.K_RETURN:
+                    self.done = True
+                elif event.key == pygame.K_F4:  # Edit prefix
+                    self.editing_field = "prefix"
+                elif event.key == pygame.K_F1:  # Edit location
+                    self.editing_field = "location"
+                elif event.key == pygame.K_F2:  # Toggle location
+                    self.include_location = not self.include_location
+                    global_include_location = self.include_location  # Update global toggle
+                elif event.key == pygame.K_F5:  # Toggle prefix
+                    self.use_prefix = not self.use_prefix
+                    global_use_prefix = self.use_prefix  # Update global toggle
+                elif event.key == pygame.K_RIGHT:
+                    self.index = (self.index + 1) % len(self.images)
+                    self.load_image_metadata()  # Reload metadata for the new image
+                    self.show_image()
+                    self.done = False
+                    self.description = ""
+                elif event.key == pygame.K_LEFT:
+                    self.index = (self.index - 1) % len(self.images)
+                    self.load_image_metadata()  # Reload metadata for the new image
+                    self.show_image()
+                    self.done = False
+                    self.description = ""
+                elif event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
+                    # Handle Shift+F4 and Shift+F1 for toggling visibility
+                    if event.mod & pygame.KMOD_SHIFT:
+                        if event.key == pygame.K_F4:  # Show/Hide prefix
+                            self.use_prefix = not self.use_prefix
+                            global_use_prefix = self.use_prefix  # Update global toggle
+                        elif event.key == pygame.K_F1:  # Show/Hide location
+                            self.include_location = not self.include_location
+                            global_include_location = self.include_location  # Update global toggle
+                elif event.unicode and event.unicode.isprintable():
+                    self.description += event.unicode
 
     def load_image_metadata(self):
         """Load metadata (date, location, and refresh file name) for the current image."""
