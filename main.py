@@ -1,8 +1,8 @@
-import pygame  # Add this import
+import pygame
 from image_viewer import ImageViewer
 from exif_reader import get_image_date, get_gps_coordinates
 from geolocator import reverse_geocode
-from renamer import rename_image
+from renamer import rename_image, build_new_filename  # Import build_new_filename
 
 from pathlib import Path
 from datetime import datetime
@@ -17,11 +17,11 @@ class AutoImageRenamer(ImageViewer):
         print(f"\nProcessing: {image_path.name}")
 
         # Get date
-        date = get_image_date(image_path)
+        self.date = get_image_date(image_path)
 
         # Get city from GPS if available
         gps = get_gps_coordinates(image_path)
-        city = reverse_geocode(*gps) if gps else ""
+        self.city = reverse_geocode(*gps) if gps else ""  # Update city for overlay
 
         # Wait for user input via overlay
         print("Provide input using the overlay...")
@@ -34,19 +34,19 @@ class AutoImageRenamer(ImageViewer):
 
             self.show_image()
 
-        # Construct final description
-        parts = []
-        if self.use_prefix and self.prefix:
-            parts.append(self.prefix)
-        if self.description:
-            parts.append(self.description)
-        full_description = " ".join(parts)
-
-        # Location toggle
-        used_city = city if self.include_location else ""
+        # Construct final name using build_new_filename
+        full_description = f"{self.prefix} {self.description}".strip()
+        final_name = build_new_filename(
+            self.date,
+            self.city if self.include_location else "",
+            full_description,
+            image_path.suffix.lower()
+        )
 
         # Rename
-        rename_image(image_path, date, used_city, full_description, test_mode=self.test_mode)
+        rename_image(image_path, self.date, self.city if self.include_location else "", full_description, test_mode=self.test_mode)
+
+        print(f"Final Name: {final_name}")
 
         # Reset for the next image
         self.done = False

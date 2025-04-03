@@ -3,6 +3,9 @@ import os
 from pathlib import Path
 from PIL import Image
 from datetime import datetime
+from renamer import build_new_filename  # Import the function
+from exif_reader import get_image_date, get_gps_coordinates  # Import GPS and date extraction
+from geolocator import reverse_geocode  # Import reverse geocoding
 
 class ImageViewer:
     def __init__(self, folder_path):
@@ -16,6 +19,8 @@ class ImageViewer:
         self.include_location = True
         self.use_prefix = True
         self.done = False
+        self.city = ""  # Placeholder for city name
+        self.date = None  # Placeholder for image date
 
     def show_image(self):
         img_path = self.images[self.index]
@@ -43,10 +48,26 @@ class ImageViewer:
         pygame.display.flip()
 
     def draw_overlay(self):
+        # Use build_new_filename to calculate the final name
+        final_name = build_new_filename(
+            self.date or datetime.now(),  # Use current date if not set
+            self.city if self.include_location else "",
+            f"{self.prefix} {self.description}".strip(),
+            ".jpg"  # Default extension for display purposes
+        )
+
+        # Translucent background
+        overlay_rect = pygame.Rect(10, 30, self.screen.get_width() - 20, 200)
+        overlay_surface = pygame.Surface((overlay_rect.width, overlay_rect.height), pygame.SRCALPHA)
+        overlay_surface.fill((0, 0, 0, 150))  # Black with 150 alpha (translucent)
+        self.screen.blit(overlay_surface, (overlay_rect.x, overlay_rect.y))
+
+        # Overlay text
         lines = [
             f"Description: {self.description}",
             f"Prefix: {'ON' if self.use_prefix else 'OFF'} - {self.prefix if self.use_prefix else ''}",
-            f"Location: {'ON' if self.include_location else 'OFF'}",
+            f"Location: {'ON' if self.include_location else 'OFF'} - {self.city if self.include_location else ''}",
+            f"Final Name: {final_name}",
             "[F1] Toggle Location   [F2] Toggle Prefix   [Enter] Confirm"
         ]
 
@@ -67,16 +88,26 @@ class ImageViewer:
                 self.use_prefix = not self.use_prefix
             elif event.key == pygame.K_RIGHT:
                 self.index = (self.index + 1) % len(self.images)
+                self.load_image_metadata()  # Reload metadata for the new image
                 self.show_image()
                 self.done = False
                 self.description = ""
             elif event.key == pygame.K_LEFT:
                 self.index = (self.index - 1) % len(self.images)
+                self.load_image_metadata()  # Reload metadata for the new image
                 self.show_image()
                 self.done = False
                 self.description = ""
             elif event.unicode and event.unicode.isprintable():
                 self.description += event.unicode
+
+    def load_image_metadata(self):
+        """Load metadata (date, location, and refresh file name) for the current image."""
+        image_path = self.get_current_image_path()
+        self.date = get_image_date(image_path)  # Get the image date
+        gps = get_gps_coordinates(image_path)  # Get GPS coordinates
+        self.city = reverse_geocode(*gps) if gps else ""  # Reverse geocode the location
+        self.images[self.index] = image_path  # Refresh the file name in case it was changed
 
     def get_current_image_path(self):
         return self.images[self.index]
