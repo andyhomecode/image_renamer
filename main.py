@@ -5,6 +5,7 @@ from renamer import rename_image
 from pathlib import Path
 import os
 import argparse
+import platform
 
 VERSION = "0.1"
 
@@ -42,14 +43,21 @@ class AutoImageRenamer:
             else:
                 break  # Exit if neither flag is set
 
-    def generate_batch_file(self, output_filename="rename_batch.bat"):
-        # Generate a batch file for renaming or moving files to the "deleted" folder
+    def generate_batch_file(self, output_filename="rename_batch"):
+        # Detect the operating system
+        is_windows = platform.system().lower() == "windows"
+        batch_file_extension = ".bat" if is_windows else ".sh"
+        batch_file_path = self.folder / (output_filename + batch_file_extension)
+
         deleted_folder = self.folder / "deleted"
-        batch_file_path = self.folder / output_filename  # Write the batch file into the photos folder
 
         with open(batch_file_path, "w") as batch_file:
-            # Add a command to create the "deleted" folder (throws an error if it already exists)
-            batch_file.write(f"mkdir \"{deleted_folder}\"\n")
+            if is_windows:
+                # Windows commands
+                batch_file.write(f"mkdir \"{deleted_folder}\"\n")
+            else:
+                # Linux/Mac commands
+                batch_file.write(f"mkdir -p \"{deleted_folder}\"\n")
 
             for change in self.changes:
                 original = change["original"]
@@ -59,11 +67,17 @@ class AutoImageRenamer:
                 if change["delete"]:
                     # Move the file to the "deleted" folder
                     deleted_path = deleted_folder / original
-                    batch_file.write(f"move \"{original_path}\" \"{deleted_path}\"\n")
+                    if is_windows:
+                        batch_file.write(f"move \"{original_path}\" \"{deleted_path}\"\n")
+                    else:
+                        batch_file.write(f"mv \"{original_path}\" \"{deleted_path}\"\n")
                 elif original != proposed:
                     # Rename the file
                     proposed_path = self.folder / proposed
-                    batch_file.write(f"rename \"{original_path}\" \"{proposed_path}\"\n")
+                    if is_windows:
+                        batch_file.write(f"rename \"{original_path}\" \"{proposed_path.name}\"\n")
+                    else:
+                        batch_file.write(f"mv \"{original_path}\" \"{proposed_path}\"\n")
 
         print(f"Batch file saved to {batch_file_path}")
 
