@@ -16,9 +16,12 @@ Then the user can edits them and enters:
 - an optional prefix to group photos (e.g. "Beach Day), and
 - a typed description of the one photo (e.g. "Andy playing in the surf")
 
-Final filename format:
+Final filename format for ease of searching and sorting photos:
+
 `YYYY MM DD Prefix City Description.jpg`
+
 e.g.
+
 `2025 06 20 Beach Day Rehoboth Andy Playing in the surf.jpg`
 
 files can be 'deleted', which moves them into a 'deleted' subfolder
