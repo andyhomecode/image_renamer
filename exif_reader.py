@@ -12,6 +12,17 @@ def get_image_date(image_path: Path) -> datetime:
         # Fallback to file modification time
         return datetime.fromtimestamp(image_path.stat().st_mtime)
 
+def set_image_date(image_path: Path, date: datetime):
+    """Set the EXIF date for the image."""
+    try:
+        exif_dict = piexif.load(str(image_path))
+        date_str = date.strftime("%Y:%m:%d %H:%M:%S")
+        exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal] = date_str.encode()
+        piexif.insert(piexif.dump(exif_dict), str(image_path))
+        print(f"EXIF date set for {image_path}: {date_str}")  # Debugging
+    except Exception as e:
+        print(f"Failed to set EXIF date for {image_path}: {e}")  # Debugging
+
 def get_gps_coordinates(image_path: Path):
     try:
         exif_dict = piexif.load(str(image_path))

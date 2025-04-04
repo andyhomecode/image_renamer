@@ -6,6 +6,7 @@ from datetime import datetime
 from renamer import build_new_filename  # Import the function
 from exif_reader import get_image_date, get_gps_coordinates  # Import GPS and date extraction
 from geolocator import reverse_geocode  # Import reverse geocoding
+import re
 
 class ImageViewer:
     def __init__(self, image_path, change_entry):
@@ -28,10 +29,31 @@ class ImageViewer:
         self.fields = ["date", "prefix", "location", "description"]  # Ordered list of fields
         self.previous_image = False  # Flag to indicate moving to the previous image
         self.next_image = False  # Flag to indicate moving to the next image
+        self.backspace_key_held = False  # Track if the backspace key is being held
+        self.backspace_key_timer = 0  # Timer for auto-repeat functionality
+        self.backspace_delete_count = 0  # Count the number of characters deleted during a single hold
+
+        # Parse the filename if it matches the expected format
+        self.parse_filename()
 
         # Load metadata for the current image if not already loaded or manually edited
-        if not self.date or (not self.city and not self.location_edited):
+        if not self.date:  # Only load EXIF date if no date was parsed from the filename
             self.load_image_metadata()
+
+    def parse_filename(self):
+        """Parse the filename to extract the date and description if it matches the expected format."""
+        filename = Path(self.image_path).stem  # Get the filename without the extension
+        match = re.match(r"(\d{4} \d{2} \d{2}) (.+)", filename)  # Match "YYYY MM DD <description>"
+        if match:
+            date_str, description = match.groups()
+            try:
+                if not self.date:  # Only set the date if it hasn't been entered
+                    self.date = datetime.strptime(date_str, "%Y %m %d")  # Parse the date
+                    self.date_text = self.date.strftime('%Y %m %d')  # Update editable date text
+                if not self.description:  # Only set the description if it hasn't been entered
+                    self.description = description.strip()  # Load the remainder into the description
+            except ValueError:
+                pass
 
     def show_image(self):
         pil_image = Image.open(self.image_path).convert('RGB')
@@ -83,7 +105,8 @@ class ImageViewer:
         else:
             final_name = self.build_final_filename()
             lines.append((f"Final Name: {final_name}", None))
-        lines.append(("[shift-F3] to reload geo  [F4] Show/Hide Overlay   [Enter] Confirm   [Del] to Delete", None))
+        lines.append(("[shift-F3] to reload geo  [F4] Show/Hide Overlay [Del] to Delete", None))
+        lines.append(("[Esc] to exit and write   [left/right] to move between photos", None))
 
         font = pygame.font.SysFont(None, int(24))  # Increase font size by 20%
         for i, (line, field_name) in enumerate(lines):
@@ -93,8 +116,10 @@ class ImageViewer:
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
-            print(f"Key pressed: {event.key}")  # Debugging: Check if keypresses are detected
-            if event.key == pygame.K_F1:  # Toggle inclusion of date in the filename
+            if event.key == pygame.K_ESCAPE:  # End editing and signal to write the batch file
+                self.running = False  # Stop the main loop
+                self.done = True  # Mark the current image as done
+            elif event.key == pygame.K_F1:  # Toggle inclusion of date in the filename
                 self.show_date = not self.show_date
             elif event.key == pygame.K_F2:  # Toggle inclusion of prefix in the filename
                 self.use_prefix = not self.use_prefix
@@ -105,20 +130,20 @@ class ImageViewer:
                 if gps:
                     self.city = reverse_geocode(*gps) or ""  # Reload geolocation
                     self.location_edited = False  # Reset manual edit flag
-                    print(f"Geolocation reloaded: {self.city}")  # Debugging
             elif event.key == pygame.K_F4:  # Toggle overlay visibility
                 self.show_overlay = not self.show_overlay
-            elif event.key == pygame.K_DELETE:  # Toggle delete/undelete for the current file
+            elif event.key == pygame.K_DELETE:  # Toggle delete/undelete for the current file and move to the next image
                 if self.change_entry["delete"]:
                     self.change_entry["delete"] = False
                     self.change_entry["proposed"] = self.change_entry["original"]
                 else:
                     self.change_entry["delete"] = True
                     self.change_entry["proposed"] = "***DELETED***"
+                self.done = True  # Mark the current image as done
+                self.next_image = True  # Move to the next image
             elif event.key == pygame.K_UP:  # Move to the previous field
                 current_index = self.fields.index(self.editing_field)
                 self.editing_field = self.fields[(current_index - 1) % len(self.fields)]
-                print(f"Editing field changed to: {self.editing_field}")  # Debugging
                 if self.editing_field == "date":
                     self.date_text = self.date.strftime('%Y %m %d') if self.date else ''  # Initialize editable date text
             elif event.key == pygame.K_DOWN:  # Move to the next field
@@ -127,57 +152,102 @@ class ImageViewer:
                     try:
                         self.date = datetime.strptime(self.date_text, '%Y %m %d')  # Validate and set the date
                     except ValueError:
-                        print("Invalid date format. Keeping the previous date.")
+                        pass  # Keep the previous date if invalid
                 self.editing_field = self.fields[(current_index + 1) % len(self.fields)]
-                print(f"Editing field changed to: {self.editing_field}")  # Debugging
             elif event.key in [pygame.K_RETURN, pygame.K_RIGHT]:  # Save changes and move to the next image
                 self.done = True
                 self.next_image = True
             elif event.key == pygame.K_LEFT:  # Save changes and move to the previous image
                 self.done = True
                 self.previous_image = True
+            elif event.key == pygame.K_BACKSPACE:  # Handle backspace key
+                self.backspace_key_held = True  # Start tracking the backspace key hold
+                self.backspace_delete_count = 0  # Reset the delete count
+                self.handle_backspace()
             elif self.editing_field == "date":  # Handle date editing
                 if event.key == pygame.K_RETURN:
                     try:
                         self.date = datetime.strptime(self.date_text, '%Y %m %d')  # Validate and set the date
                     except ValueError:
-                        print("Invalid date format. Use YYYY MM DD.")
+                        pass  # Keep the previous date if invalid
                     self.editing_field = "description"  # Revert to editing description
-                elif event.key == pygame.K_BACKSPACE:
-                    self.date_text = self.date_text[:-1]  # Remove the last character
                 elif event.unicode and event.unicode.isprintable():
                     self.date_text += event.unicode  # Add the typed character
             elif self.editing_field == "prefix":  # Handle prefix editing
                 if event.key == pygame.K_RETURN:
                     self.editing_field = "description"  # Revert to editing description
-                elif event.key == pygame.K_BACKSPACE:
-                    self.prefix = self.prefix[:-1]
                 elif event.unicode and event.unicode.isprintable():
                     self.prefix += event.unicode
             elif self.editing_field == "location":  # Handle location editing
                 if event.key == pygame.K_RETURN:
                     self.editing_field = "description"  # Revert to editing description
-                elif event.key == pygame.K_BACKSPACE:
-                    self.city = self.city[:-1]
-                    self.location_edited = True  # Mark location as manually edited
                 elif event.unicode and event.unicode.isprintable():
                     self.city += event.unicode
                     self.location_edited = True  # Mark location as manually edited
             elif self.editing_field == "description":  # Handle description editing
                 if event.key == pygame.K_RETURN:
                     self.done = True  # Confirm and proceed
-                elif event.key == pygame.K_BACKSPACE:
-                    self.description = self.description[:-1]  # Remove the last character
                 elif event.unicode and event.unicode.isprintable():
                     self.description += event.unicode  # Add the typed character
 
             # Refresh the overlay after handling the event
             self.show_image()
+        elif event.type == pygame.KEYUP:
+            if event.key == pygame.K_BACKSPACE:
+                self.backspace_key_held = False  # Stop tracking the backspace key hold
+                self.backspace_delete_count = 0  # Reset the delete count
+
+    def update(self, delta_time):
+        """Update method to handle auto-repeat functionality."""
+        if self.backspace_key_held:
+            self.backspace_key_timer += delta_time
+            if self.backspace_key_timer >= 0.1:  # Adjust the delay for auto-repeat (in seconds)
+                self.handle_backspace()
+                self.backspace_key_timer = 0  # Reset the timer
+
+    def handle_backspace(self):
+        """Handle the backspace key to delete characters."""
+        if self.backspace_delete_count >= 5:  # If more than 5 characters are deleted, clear the field
+            if self.editing_field == "date":
+                self.date_text = ""
+            elif self.editing_field == "prefix":
+                self.prefix = ""
+            elif self.editing_field == "location":
+                self.city = ""
+                self.location_edited = True  # Mark location as manually edited
+            elif self.editing_field == "description":
+                self.description = ""
+        else:  # Otherwise, delete one character at a time
+            if self.editing_field == "date":
+                self.date_text = self.date_text[:-1]
+            elif self.editing_field == "prefix":
+                self.prefix = self.prefix[:-1]
+            elif self.editing_field == "location":
+                self.city = self.city[:-1]
+                self.location_edited = True  # Mark location as manually edited
+            elif self.editing_field == "description":
+                self.description = self.description[:-1]
+            self.backspace_delete_count += 1  # Increment the delete count
+
+        self.show_image()  # Refresh the overlay to reflect the changes
+
+    def get_current_field_value(self):
+        """Get the current value of the field being edited."""
+        if self.editing_field == "date":
+            return self.date_text
+        elif self.editing_field == "prefix":
+            return self.prefix
+        elif self.editing_field == "location":
+            return self.city
+        elif self.editing_field == "description":
+            return self.description
+        return ""
 
     def load_image_metadata(self):
         """Load metadata (date, location, and refresh file name) for the current image."""
-        self.date = get_image_date(self.image_path)  # Get the image date
-        self.date_text = self.date.strftime('%Y %m %d') if self.date else ""  # Preload editable date text
+        if not self.date:  # Only load EXIF date if no date was parsed from the filename
+            self.date = get_image_date(self.image_path)  # Get the image date
+            self.date_text = self.date.strftime('%Y %m %d') if self.date else ""  # Preload editable date text
         if not self.location_edited:  # Only load geolocated city if not manually edited
             gps = get_gps_coordinates(self.image_path)  # Get GPS coordinates
             self.city = reverse_geocode(*gps) if gps else ""  # Reverse geocode the location
@@ -218,13 +288,17 @@ class ImageViewer:
         pygame.init()
         self.screen = pygame.display.set_mode((800, 600))
         self.show_image()
+        clock = pygame.time.Clock()  # Add a clock to track delta time
 
         while self.running:
+            delta_time = clock.tick(60) / 1000.0  # Get delta time in seconds
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
                 else:
                     self.handle_event(event)
+
+            self.update(delta_time)  # Call the update method for auto-repeat functionality
 
             if self.done:
                 self.handle_current_image()

@@ -3,6 +3,10 @@ from image_viewer import ImageViewer
 from renamer import rename_image
 
 from pathlib import Path
+import os
+import argparse
+
+VERSION = "0.1"
 
 class AutoImageRenamer:
     def __init__(self, folder_path, test_mode=False):
@@ -17,7 +21,7 @@ class AutoImageRenamer:
 
     def process_files(self):
         index = 0  # Start with the first image
-        while 0 <= index < len(self.images):
+        while True:
             image_path = self.images[index]
             print(f"\nProcessing file {index + 1}/{len(self.images)}: {image_path.name}")
 
@@ -29,30 +33,50 @@ class AutoImageRenamer:
             self.changes[index] = viewer.get_changes()
 
             # Handle navigation
-            if viewer.next_image:
-                index += 1  # Move to the next image
+            if not viewer.running:  # If ESC was pressed, stop processing
+                break
+            elif viewer.next_image:
+                index = (index + 1) % len(self.images)  # Move to the next image, loop to the start if at the end
             elif viewer.previous_image:
-                index -= 1  # Move to the previous image
+                index = (index - 1) % len(self.images)  # Move to the previous image, loop to the end if at the start
             else:
                 break  # Exit if neither flag is set
 
-    def generate_batch_file(self, output_path="rename_batch.bat"):
-        # Generate a batch file for renaming or deleting files
-        with open(output_path, "w") as batch_file:
+    def generate_batch_file(self, output_filename="rename_batch.bat"):
+        # Generate a batch file for renaming or moving files to the "deleted" folder
+        deleted_folder = self.folder / "deleted"
+        batch_file_path = self.folder / output_filename  # Write the batch file into the photos folder
+
+        with open(batch_file_path, "w") as batch_file:
+            # Add a command to create the "deleted" folder (throws an error if it already exists)
+            batch_file.write(f"mkdir \"{deleted_folder}\"\n")
+
             for change in self.changes:
                 original = change["original"]
                 proposed = change["proposed"]
+                original_path = self.folder / original
+
                 if change["delete"]:
-                    batch_file.write(f"del \"{original}\"\n")
+                    # Move the file to the "deleted" folder
+                    deleted_path = deleted_folder / original
+                    batch_file.write(f"move \"{original_path}\" \"{deleted_path}\"\n")
                 elif original != proposed:
-                    batch_file.write(f"rename \"{original}\" \"{proposed}\"\n")
-        print(f"Batch file saved to {output_path}")
+                    # Rename the file
+                    proposed_path = self.folder / proposed
+                    batch_file.write(f"rename \"{original_path}\" \"{proposed_path}\"\n")
+
+        print(f"Batch file saved to {batch_file_path}")
 
     def run(self):
         self.process_files()
         self.generate_batch_file()
 
+
 if __name__ == "__main__":
-    folder = "./photos"  # Change this to your image folder
+    parser = argparse.ArgumentParser(description=f"Auto Image Renamer v{VERSION}: Rename images interactively based on EXIF data and user input.")
+    parser.add_argument("folder", help="Path to the folder containing images to rename.")
+    args = parser.parse_args()
+
+    folder = args.folder
     app = AutoImageRenamer(folder_path=folder, test_mode=True)
     app.run()
