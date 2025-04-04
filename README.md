@@ -1,6 +1,12 @@
 # 🖼️ Image Renamer with EXIF
+# Andy Maxwell 
+# 0.1 4/4/2025
 
-This is a Python tool for quickly and interactively using just the keyboard renaming photos in a directory based on:
+
+This is a Python tool for renaming and deleting large batches of photos in a folder.
+
+The goal was to make something that would be fast to use just with the keyboard.
+
 - EXIF photo date
 - an entered prefix
 - GPS coordinates (converted to city name)
@@ -11,7 +17,8 @@ Final filename format:
 
 files can be 'deleted', which moves them into a 'deleted' subfolder
 
-it creates a .bat or .sh script file to make the changes rather than doing the changes itself.
+The program creates a .bat or .sh script file in the photo directory to make the changes rather than doing the changes itself.  This makes testing easy and allows you to review the changes before they happen.
+
 ---
 
 ## 🔧 Installation
@@ -101,17 +108,14 @@ python main.py ./photos
 
 ## 📌 Future Features
 
-- Undo renames.
-- Batch mode for processing multiple images at once.
-- Auto-skip already processed files.
-- Pre-process image categorization using AI to speed up tagging.
+- None. It emerged perfectly like Athena from Zeus's head.
 
 ---
 
 ## 📌 TODOs
 
-- [ ] Update the EXIF metadata with the edited date or other fields (e.g., location, description).
-- [ ] Add undo functionality for renames.
-- [ ] Implement batch mode for processing multiple images at once.
-- [ ] Pre-process image categorization using AI to speed up tagging.
-- [ ] Add support for additional image formats.
+- [ ] also none.
+
+---
+
+## 🤖 This was mostly vibe coded using ChatGPT initially, then VS Code w/Copilot once I split it up into multiple files.
