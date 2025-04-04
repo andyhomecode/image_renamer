@@ -1,12 +1,12 @@
-# 🖼️ Image Renamer with EXIF + Voice Input
+# 🖼️ Image Renamer with EXIF
 
 This is a Python tool for interactively renaming photos based on:
 - EXIF photo date
 - GPS coordinates (converted to city name)
-- A spoken description (via microphone)
+- A typed description
 
 Final filename format:
-YYYY MM DD City Description.jpg
+YYYY MM DD Prefix City Description.jpg
 
 ---
 
@@ -14,89 +14,79 @@ YYYY MM DD City Description.jpg
 
 ### 1. Clone this repo and enter the project folder
 
+```bash
 git clone https://your-repo-url
 cd image-renamer
+```
 
 ### 2. (Optional) Create a virtual environment
 
+```bash
 python3 -m venv venv
 source venv/bin/activate
+```
 
 ### 3. Install dependencies
 
+```bash
 pip install -r requirements.txt
-
-If you're on Linux and get errors with `sounddevice`, install portaudio:
-
-sudo apt install portaudio19-dev python3-pyaudio
-
-
-## 🔊 Vosk Model (for voice input)
-
-Download a small English speech model:
-
-wget https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
-unzip vosk-model-small-en-us-0.15.zip
-mv vosk-model-small-en-us-0.15 model
-
-Make sure the `model/` folder sits next to your Python files.
+```
 
 ---
 
 ## 📁 Folder Structure
 
+```
 image-renamer/
 ├── main.py
-├── image_viewer.py  # worked straight from GPT
-├── exif_reader.py  # worked straight from GPT
-├── geolocator.py    # worked straight from GPT
-├── voice_input.py   # worked straight from GPT
-├── renamer.py		# worked straight from GPT 100% functional!!!
-├── requirements.txt   # worked straight from GPT
-├── model/                  # Vosk model folder
+├── image_viewer.py
+├── exif_reader.py
+├── geolocator.py
+├── renamer.py
+├── requirements.txt
 └── photos/                 # Place your images here
+```
 
 ---
 
 ## 🚀 Running the App
 
+```bash
 python main.py
+```
 
-- Use ← and → arrow keys to navigate between images.
-- For each image, a floating overlay window will appear.
-- You can type a description, and optionally use a persistent prefix.
-- Press `L` to toggle including/excluding the location in the filename.
-- Press `P` to toggle using a persistent prefix.
-- Press `Enter` to confirm and rename the image (or preview if in test mode).
-- When satisfied, turn off `test_mode` in `main.py` to apply real renaming.
+### Overlay Controls:
+- **Arrow Keys**:
+  - `←` and `→`: Navigate between images.
+  - `↑` and `↓`: Switch between editable fields (Date, Prefix, Location, Description).
+- **Editing Fields**:
+  - Type to edit the selected field.
+  - Press `Backspace` to delete characters.
+  - Press `Enter` to confirm the current field or finalize the rename.
+- **Toggles**:
+  - `F1`: Include/Exclude the date in the filename.
+  - `F2`: Include/Exclude the prefix in the filename.
+  - `F3`: Include/Exclude the location in the filename.
+  - `F4`: Show/Hide the overlay to view the image without distractions.
+- **Final Name**:
+  - The overlay dynamically updates to show the final filename based on the current inputs and toggles.
 
 ---
 
 ## ✅ Notes
 
-- Supported formats: .jpg, .jpeg, .png
-- Falls back to file mod time if no EXIF date
-- Falls back to empty city if no GPS
-
-- ## 🎮 Keyboard Controls
-
-| Key     | Action                          |
-|---------|---------------------------------| 
-| ← / →   | Move to previous/next image     |
-| `F1`     | Toggle location ON/OFF          |
-| `F2`     | Toggle prefix ON/OFF            |
-| Typing  | Enter image description         |
-| `Enter` | Confirm and rename image        |
+- Supported formats: `.jpg`, `.jpeg`, `.png`
+- Falls back to file modification time if no EXIF date is available.
+- Falls back to an empty city if no GPS data is available.
 
 ---
 
 ## 📌 Future Features
 
-- Undo renames
-- Batch mode
-- Auto-skip already processed files
-- ANDY: Consider pre-processing date and location into .csv files to speed categorization.
-- ANDY: consider pre-processing image categorization using imagenet or LLM to identify people, major things, to speed categorization
+- Undo renames.
+- Batch mode for processing multiple images at once.
+- Auto-skip already processed files.
+- Pre-process image categorization using AI to speed up tagging.
 
 ---
 

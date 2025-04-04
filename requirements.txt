@@ -2,5 +2,3 @@ pygame
 pillow
 piexif
 geopy
-vosk
-sounddevice
