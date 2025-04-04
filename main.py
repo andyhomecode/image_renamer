@@ -43,6 +43,8 @@ class AutoImageRenamer(ImageViewer):
             image_path.suffix.lower()
         )
 
+        # TODO: Update the EXIF metadata with the edited date or other fields (e.g., location, description)
+
         # Rename
         rename_image(image_path, self.date, self.city if self.include_location else "", full_description, test_mode=self.test_mode)
 

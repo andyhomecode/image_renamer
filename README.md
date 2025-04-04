@@ -81,13 +81,12 @@ python main.py
 - ## 🎮 Keyboard Controls
 
 | Key     | Action                          |
-|---------|---------------------------------|
+|---------|---------------------------------| 
 | ← / →   | Move to previous/next image     |
 | `F1`     | Toggle location ON/OFF          |
 | `F2`     | Toggle prefix ON/OFF            |
 | Typing  | Enter image description         |
 | `Enter` | Confirm and rename image        |
-
 
 ---
 
@@ -98,3 +97,12 @@ python main.py
 - Auto-skip already processed files
 - ANDY: Consider pre-processing date and location into .csv files to speed categorization.
 - ANDY: consider pre-processing image categorization using imagenet or LLM to identify people, major things, to speed categorization
+
+---
+
+## 📌 TODOs
+
+- [ ] Update the EXIF metadata with the edited date or other fields (e.g., location, description).
+- [ ] Add undo functionality for renames.
+- [ ] Implement batch mode for processing multiple images at once.
+- [ ] Pre-process image categorization using AI to speed up tagging.
