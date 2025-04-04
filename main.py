@@ -7,17 +7,22 @@ import os
 import argparse
 import platform
 from datetime import datetime  # Add import for current date and time
+import fnmatch  # Add import for wildcard matching
 
 VERSION = "0.1"
 
 class AutoImageRenamer:
-    def __init__(self, folder_path, test_mode=False):
+    def __init__(self, folder_path, test_mode=False, wildcard="*"):
         self.folder = Path(folder_path)
         self.test_mode = test_mode
+        self.wildcard = wildcard  # Store the wildcard pattern
         self.changes = []  # List to track changes (original name, proposed new name, delete flag)
 
         # Build the list of files and initialize changes
-        self.images = sorted([f for f in self.folder.iterdir() if f.suffix.lower() in ['.jpg', '.jpeg', '.png']])
+        self.images = sorted([
+            f for f in self.folder.iterdir()
+            if f.suffix.lower() in ['.jpg', '.jpeg', '.png'] and fnmatch.fnmatch(f.name, self.wildcard)
+        ])
         for img in self.images:
             self.changes.append({"original": img.name, "proposed": img.name, "delete": False, "description": ""})
 
@@ -95,8 +100,10 @@ class AutoImageRenamer:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=f"Auto Image Renamer v{VERSION}: Rename images interactively based on EXIF data and user input.")
     parser.add_argument("folder", help="Path to the folder containing images to rename.")
+    parser.add_argument("--wildcard", default="*", help="Optional filename wildcard filter (e.g., 'IMG_*').")
     args = parser.parse_args()
 
     folder = args.folder
-    app = AutoImageRenamer(folder_path=folder, test_mode=True)
+    wildcard = args.wildcard
+    app = AutoImageRenamer(folder_path=folder, test_mode=True, wildcard=wildcard)
     app.run()

@@ -74,13 +74,13 @@ image-renamer/
 ## 🚀 Running the App
 
 ```bash
-python main.py <path_to_photos_folder>
+python main.py <path_to_photos_folder> [--wildcard <pattern>]
 ```
 
 For example:
 
 ```bash
-python main.py ./photos
+python main.py ./photos --wildcard "IMG_*"
 ```
 
 ### Overlay Controls:
@@ -113,6 +113,7 @@ python main.py ./photos
 - Batch files are generated for renaming and moving files:
   - On **Windows**: A `.bat` file is created.
   - On **Linux/Mac**: A `.sh` file is created.
+- **Wildcard Filtering**: Use the `--wildcard` parameter to process only files matching a specific pattern (e.g., `IMG_*`).
 
 ---
 
