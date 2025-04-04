@@ -1,18 +1,19 @@
 # 🖼️ Image Renamer with EXIF
-# Andy Maxwell 
-# 0.1 4/4/2025
+Andy Maxwell 
+0.1 4/4/2025
 
+---
 
 This is a Python tool for renaming and deleting large batches of photos in a folder.
 
 The goal was to make something that would be fast to use just with the keyboard.
 
-Image files are examined to get the 
+Image files are loaded and examined to get the 
 
 - EXIF photo date
 - GPS coordinates (converted to city name)
 
-Then the user can edits them and enters: 
+Then the user can edit them and enters: 
 - an optional prefix to group photos (e.g. "Beach Day), and
 - a typed description of the one photo (e.g. "Andy playing in the surf")
 
