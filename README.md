@@ -1,14 +1,17 @@
 # 🖼️ Image Renamer with EXIF
 
-This is a Python tool for interactively renaming photos based on:
+This is a Python tool for quickly and interactively using just the keyboard renaming photos in a directory based on:
 - EXIF photo date
+- an entered prefix
 - GPS coordinates (converted to city name)
 - A typed description
-- Optional voice input for descriptions (requires `vosk` and `sounddevice`)
 
 Final filename format:
 `YYYY MM DD Prefix City Description.jpg`
 
+files can be 'deleted', which moves them into a 'deleted' subfolder
+
+it creates a .bat or .sh script file to make the changes rather than doing the changes itself.
 ---
 
 ## 🔧 Installation
