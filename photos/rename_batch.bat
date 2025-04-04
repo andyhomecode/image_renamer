@@ -1,6 +1,3 @@
 mkdir "photos\deleted"
-rename "photos\2025 01 03 birthday pants label.JPG" "photos\2025 01 03 lulu lemon.jpg"
-rename "photos\IMG_7776.JPG" "photos\2024 02 25 Kudamatsu road.jpg"
-rename "photos\IMG_7777.JPG" "photos\2024 02 11 New York.jpg"
-rename "photos\IMG_7779.JPG" "photos\2024 02 11.jpg"
-move "photos\IMG_7780.JPG" "photos\deleted\IMG_7780.JPG"
+rename "photos\2025 01 03 birthday pants label.JPG" "photos\2025 01 03 ldsfkjds birthday pants label.jpg"
+rename "photos\IMG_7776.JPG" "photos\2024 02 25 ldsfkjds Kudamatsu.jpg"

@@ -8,14 +8,18 @@ from exif_reader import get_image_date, get_gps_coordinates  # Import GPS and da
 from geolocator import reverse_geocode  # Import reverse geocoding
 import re
 
+# Global variable for the prefix
+global_prefix = ""
+
 class ImageViewer:
     def __init__(self, image_path, change_entry):
+        global global_prefix  # Access the global prefix
         self.image_path = image_path
         self.change_entry = change_entry  # Dictionary containing original, proposed, and delete flag
         self.screen = None
         self.running = True
         self.description = change_entry.get("description", "")  # Initialize description from change_entry
-        self.prefix = change_entry.get("prefix", "")  # Initialize prefix from change_entry
+        self.prefix = change_entry.get("prefix", global_prefix)  # Use the global prefix if none is set
         self.include_location = change_entry.get("include_location", True)  # Initialize location toggle
         self.use_prefix = change_entry.get("use_prefix", True)  # Initialize prefix toggle
         self.show_date = change_entry.get("show_date", True)  # Initialize date toggle
@@ -76,7 +80,8 @@ class ImageViewer:
 
     def draw_overlay(self):
         # Translucent background
-        overlay_rect = pygame.Rect(10, 30, self.screen.get_width() - 20, 250)
+        overlay_height = 300  # Increased height to fit all text
+        overlay_rect = pygame.Rect(10, 30, self.screen.get_width() - 20, overlay_height)
         overlay_surface = pygame.Surface((overlay_rect.width, overlay_rect.height), pygame.SRCALPHA)
         overlay_surface.fill((0, 0, 0, 150))  # Black with 150 alpha (translucent)
         self.screen.blit(overlay_surface, (overlay_rect.x, overlay_rect.y))
@@ -105,7 +110,8 @@ class ImageViewer:
         else:
             final_name = self.build_final_filename()
             lines.append((f"Final Name: {final_name}", None))
-        lines.append(("[shift-F3] to reload geo  [F4] Show/Hide Overlay [Del] to Delete", None))
+        lines.append(("[shift-F1] Reload Date  [shift-F2] Clear Prefix", None))  # Update overlay with Shift + F1 and Shift + F2 functionality
+        lines.append(("[shift-F3] Reload Geo  [F4] Show/Hide Overlay [Del] to Delete", None))
         lines.append(("[Esc] to exit and write   [left/right] to move between photos", None))
 
         font = pygame.font.SysFont(None, int(24))  # Increase font size by 20%
@@ -115,14 +121,19 @@ class ImageViewer:
             self.screen.blit(text_surface, (20, 40 + i * 36))  # Adjust line spacing proportionally
 
     def handle_event(self, event):
+        global global_prefix  # Access the global prefix
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:  # End editing and signal to write the batch file
                 self.running = False  # Stop the main loop
                 self.done = True  # Mark the current image as done
+            elif event.key == pygame.K_F2 and not (event.mod & pygame.KMOD_SHIFT):  # Toggle inclusion of prefix in the filename
+                self.use_prefix = not self.use_prefix
+            elif event.key == pygame.K_F2 and (event.mod & pygame.KMOD_SHIFT):  # Clear the prefix
+                self.prefix = ""  # Clear the prefix for the current image
+                global_prefix = ""  # Clear the global prefix
+                self.show_image()  # Refresh the overlay
             elif event.key == pygame.K_F1:  # Toggle inclusion of date in the filename
                 self.show_date = not self.show_date
-            elif event.key == pygame.K_F2:  # Toggle inclusion of prefix in the filename
-                self.use_prefix = not self.use_prefix
             elif event.key == pygame.K_F3 and not (event.mod & pygame.KMOD_SHIFT):  # Toggle inclusion of location
                 self.include_location = not self.include_location
             elif event.key == pygame.K_F3 and (event.mod & pygame.KMOD_SHIFT):  # Reload geolocation
@@ -263,6 +274,7 @@ class ImageViewer:
         )
 
     def handle_current_image(self):
+        global global_prefix  # Access the global prefix
         # Update the proposed name or delete flag for the current image
         if self.done:
             if self.change_entry["delete"]:
@@ -271,6 +283,7 @@ class ImageViewer:
                 self.change_entry["proposed"] = self.build_final_filename()
                 self.change_entry["description"] = self.description.strip()
                 self.change_entry["prefix"] = self.prefix.strip()
+                global_prefix = self.prefix.strip()  # Update the global prefix only when saving changes
                 self.change_entry["city"] = self.city.strip()
                 self.change_entry["date"] = self.date
                 self.change_entry["include_location"] = self.include_location
