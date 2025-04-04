@@ -79,12 +79,10 @@ class ImageViewer:
         pygame.display.flip()
 
     def draw_overlay(self):
-        # Translucent background
-        overlay_height = 300  # Increased height to fit all text
-        overlay_rect = pygame.Rect(10, 30, self.screen.get_width() - 20, overlay_height)
-        overlay_surface = pygame.Surface((overlay_rect.width, overlay_rect.height), pygame.SRCALPHA)
-        overlay_surface.fill((0, 0, 0, 150))  # Black with 150 alpha (translucent)
-        self.screen.blit(overlay_surface, (overlay_rect.x, overlay_rect.y))
+        # Calculate overlay height dynamically based on the actual number of lines
+        line_height = 36  # Height of each line
+        padding = 10  # Padding above and below the text
+        lines = []  # Initialize the lines list
 
         # Overlay text
         def add_cursor(text, field_name):
@@ -93,13 +91,16 @@ class ImageViewer:
                 return text + "_"
             return text
 
-        def get_text_color(field_name):
-            """Return white for the editing field, gray for others."""
+        def get_text_color(field_name, is_filename=False, is_instruction=False):
+            """Return the appropriate text color."""
+            if is_filename:
+                return (255, 255, 0)  # Yellow for the filename line
+            if is_instruction:
+                return (150, 150, 150)  # Gray for instruction lines
             return (255, 255, 255) if self.editing_field == field_name else (150, 150, 150)
 
         date_text = self.date_text if self.editing_field == "date" else (self.date.strftime('%Y %m %d') if self.date else 'Unknown')
-        lines = []
-        # Always display the date field, but indicate whether it is included in the filename
+        # Add lines for the overlay
         lines.append((f"[F1] Date {'[EXCLUDED]' if not self.show_date else ''} {'[EDITING]' if self.editing_field == 'date' else ''}: {add_cursor(date_text, 'date')}", "date"))
         lines.append((f"[F2] Prefix {'[HIDDEN]' if not self.use_prefix else ''} {'[EDITING]' if self.editing_field == 'prefix' else ''}: {add_cursor(self.prefix, 'prefix')}", "prefix"))
         lines.append((f"[F3] Location {'[HIDDEN]' if not self.include_location else ''} {'[EDITING]' if self.editing_field == 'location' else ''}: {add_cursor(self.city, 'location')}", "location"))
@@ -109,15 +110,28 @@ class ImageViewer:
             lines.append(("Filename: ***DELETED***", None))
         else:
             final_name = self.build_final_filename()
-            lines.append((f"Final Name: {final_name}", None))
-        lines.append(("[Del] to delte, shift F1-F3 reload/clear", None))  # Update overlay with Shift + F1 and Shift + F2 functionality
-        lines.append(("[L/R] to nav  [F4] Show/Hide Overlay [Del] to del and [Esc] to end", None))
+            lines.append((f"Final Name: {final_name}", None))  # Filename line
+
+        # Instruction lines
+        lines.append(("[Del] to delete, shift F1-F3 reload/clear", None))
+        lines.append(("[L/R] to nav  [F4] Show/Hide Overlay [Del] to delete and [Esc] to end", None))
+
+        # Calculate overlay height based on the number of lines
+        overlay_height = len(lines) * line_height + 2 * padding
+
+        # Translucent background
+        overlay_rect = pygame.Rect(10, 30, self.screen.get_width() - 20, overlay_height)
+        overlay_surface = pygame.Surface((overlay_rect.width, overlay_rect.height), pygame.SRCALPHA)
+        overlay_surface.fill((0, 0, 0, 150))  # Black with 150 alpha (translucent)
+        self.screen.blit(overlay_surface, (overlay_rect.x, overlay_rect.y))
 
         font = pygame.font.SysFont(None, int(24))  # Increase font size by 20%
         for i, (line, field_name) in enumerate(lines):
-            text_color = get_text_color(field_name) if field_name else (255, 255, 255)  # Default to white for non-editable lines
+            is_filename = (i == len(lines) - 3)  # The filename line is the third-to-last line
+            is_instruction = (i >= len(lines) - 2)  # The last two lines are instructions
+            text_color = get_text_color(field_name, is_filename, is_instruction)
             text_surface = font.render(line, True, text_color)
-            self.screen.blit(text_surface, (20, 40 + i * 36))  # Adjust line spacing proportionally
+            self.screen.blit(text_surface, (20, 40 + i * line_height))  # Adjust line spacing proportionally
 
     def handle_event(self, event):
         global global_prefix  # Access the global prefix
