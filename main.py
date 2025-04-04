@@ -78,8 +78,8 @@ class AutoImageRenamer:
                         batch_file.write(f"move \"{original}\" \"{deleted_path}\"\n")
                     else:
                         batch_file.write(f"mv \"{original}\" \"{deleted_path}\"\n")
-                elif original != proposed:
-                    # Rename the file
+                elif original != proposed and change.get("description", "").strip():
+                    # Rename the file only if the description is not blank
                     if is_windows:
                         batch_file.write(f"rename \"{original}\" \"{proposed}\"\n")
                     else:
