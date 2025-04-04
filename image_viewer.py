@@ -47,15 +47,13 @@ class ImageViewer:
         img_path = self.images[self.index]
         pil_image = Image.open(img_path).convert('RGB')
 
-        # Reserve space for a top bar (e.g., 50 pixels)
+        # Get screen dimensions
         screen_width, screen_height = self.screen.get_size()
-        overlay_height = 50
-        image_area = pygame.Rect(0, overlay_height, screen_width, screen_height - overlay_height)
 
-        # Resize image to fit image_area
-        pil_image.thumbnail((image_area.width, image_area.height))
+        # Resize image to fit the screen dimensions
+        pil_image.thumbnail((screen_width, screen_height))
         image = pygame.image.fromstring(pil_image.tobytes(), pil_image.size, pil_image.mode)
-        image_rect = image.get_rect(center=image_area.center)
+        image_rect = image.get_rect(center=(screen_width // 2, screen_height // 2))
 
         self.screen.fill((30, 30, 30))  # Clear screen with dark gray
         self.screen.blit(image, image_rect)
