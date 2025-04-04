@@ -42,6 +42,9 @@ class ImageViewer:
         self.editing_field = "description"  # Default to editing the description
         self.date_text = ""  # Editable date text
         self.fields = ["date", "prefix", "location", "description"]  # Ordered list of fields
+        self.changes = []  # List to track changes (original name, proposed new name, delete flag)
+        for img in self.images:
+            self.changes.append({"original": img.name, "proposed": img.name, "delete": False})
 
     def show_image(self):
         img_path = self.images[self.index]
@@ -64,16 +67,6 @@ class ImageViewer:
         pygame.display.flip()
 
     def draw_overlay(self):
-        # Use build_new_filename to calculate the final name
-        valid_date = self.date if self.date else datetime.now()  # Fallback to current date if self.date is None
-        final_name = build_new_filename(
-            valid_date if self.show_date else None,  # Include date if toggled on
-            self.prefix if self.use_prefix else "",  # Include prefix if toggled on
-            self.city if self.include_location else "",  # Include location if toggled on
-            self.description.strip(),  # Include description
-            ".jpg"  # Default extension for display purposes
-        )
-
         # Translucent background
         overlay_rect = pygame.Rect(10, 30, self.screen.get_width() - 20, 250)
         overlay_surface = pygame.Surface((overlay_rect.width, overlay_rect.height), pygame.SRCALPHA)
@@ -100,8 +93,20 @@ class ImageViewer:
         if self.show_location:
             lines.append((f"[F3] Location {'[HIDDEN]' if not self.include_location else ''} {'[EDITING]' if self.editing_field == 'location' else ''}: {add_cursor(self.city, 'location')}", "location"))
         lines.append((f"Description {'[EDITING]' if self.editing_field == 'description' else ''}: {add_cursor(self.description, 'description')}", "description"))
-        lines.append((f"Final Name: {final_name}", None))
-        lines.append(("[F4] Show/Hide Overlay   [Enter] Confirm", None))
+
+        current_change = self.changes[self.index]
+        if current_change["delete"]:
+            lines.append(("Filename: ***DELETED***", None))
+        else:
+            final_name = build_new_filename(
+                self.date if self.show_date else None,
+                self.prefix if self.use_prefix else "",
+                self.city if self.include_location else "",
+                self.description.strip(),
+                ".jpg" #TODO: Use the actual file extension
+            )
+            lines.append((f"Final Name: {final_name}", None))
+        lines.append(("[F4] Show/Hide Overlay   [Enter] Confirm   [Del] to Delete", None))
 
         font = pygame.font.SysFont(None, int(24))  # Increase font size by 20%
         for i, (line, field_name) in enumerate(lines):
@@ -124,6 +129,16 @@ class ImageViewer:
             elif event.key == pygame.K_F4:  # Toggle overlay visibility
                 self.show_overlay = not self.show_overlay
                 global_show_overlay = self.show_overlay  # Update global toggle
+            elif event.key == pygame.K_DELETE:  # Toggle delete/undelete for the current file
+                current_change = self.changes[self.index]
+                if current_change["delete"]:
+                    # Undelete the file
+                    current_change["delete"] = False
+                    current_change["proposed"] = current_change["original"]  # Restore original name
+                else:
+                    # Mark the file as deleted
+                    current_change["delete"] = True
+                    current_change["proposed"] = "***DELETED***"
             elif event.key == pygame.K_UP:  # Move to the previous field
                 current_index = self.fields.index(self.editing_field)
                 self.editing_field = self.fields[(current_index - 1) % len(self.fields)]
@@ -206,6 +221,37 @@ class ImageViewer:
     def get_current_image_path(self):
         return self.images[self.index]
 
+    def handle_current_image(self):
+        # Update the proposed name or delete flag for the current image
+        current_change = self.changes[self.index]
+        if self.done:
+            if self.description.strip().lower() == "delete":  # Mark for deletion if "delete" is entered
+                current_change["delete"] = True
+                current_change["proposed"] = None
+            else:
+                full_description = f"{self.prefix} {self.description}".strip()
+                current_change["proposed"] = build_new_filename(
+                    self.date,
+                    self.city if self.include_location else "",
+                    full_description,
+                    self.images[self.index].suffix.lower()
+                )
+                current_change["delete"] = False
+            self.done = False  # Reset for the next image
+            self.description = ""
+
+    def generate_batch_file(self, output_path="rename_batch.bat"):
+        # Generate a batch file for renaming or deleting files
+        with open(output_path, "w") as batch_file:
+            for change in self.changes:
+                original = change["original"]
+                proposed = change["proposed"]
+                if change["delete"]:
+                    batch_file.write(f"del \"{original}\"\n")
+                elif original != proposed:
+                    batch_file.write(f"rename \"{original}\" \"{proposed}\"\n")
+        print(f"Batch file saved to {output_path}")
+
     def run(self):
         pygame.init()
         self.screen = pygame.display.set_mode((800, 600))
@@ -219,11 +265,11 @@ class ImageViewer:
                     self.handle_event(event)
 
             if self.done:
-                print("Final Description:", self.description.strip())
-                print("Include Location:", self.include_location)
-                print("Use Prefix:", self.use_prefix)
-                self.done = False  # Reset for the next image
+                self.handle_current_image()
+                self.show_image()
 
+        # Generate the batch file when exiting
+        self.generate_batch_file()
         pygame.quit()
 
 if __name__ == "__main__":
