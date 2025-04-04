@@ -110,9 +110,8 @@ class ImageViewer:
         else:
             final_name = self.build_final_filename()
             lines.append((f"Final Name: {final_name}", None))
-        lines.append(("[shift-F1] Reload Date  [shift-F2] Clear Prefix", None))  # Update overlay with Shift + F1 and Shift + F2 functionality
-        lines.append(("[shift-F3] Reload Geo  [F4] Show/Hide Overlay [Del] to Delete", None))
-        lines.append(("[Esc] to exit and write   [left/right] to move between photos", None))
+        lines.append(("[Del] to delte, shift F1-F3 reload/clear", None))  # Update overlay with Shift + F1 and Shift + F2 functionality
+        lines.append(("[L/R] to nav  [F4] Show/Hide Overlay [Del] to del and [Esc] to end", None))
 
         font = pygame.font.SysFont(None, int(24))  # Increase font size by 20%
         for i, (line, field_name) in enumerate(lines):
@@ -126,14 +125,24 @@ class ImageViewer:
             if event.key == pygame.K_ESCAPE:  # End editing and signal to write the batch file
                 self.running = False  # Stop the main loop
                 self.done = True  # Mark the current image as done
+            elif event.key == pygame.K_F1 and not (event.mod & pygame.KMOD_SHIFT):  # Toggle inclusion of date in the filename
+                self.show_date = not self.show_date  # Toggle the date visibility
+                self.show_image()  # Refresh the overlay
+            elif event.key == pygame.K_F1 and (event.mod & pygame.KMOD_SHIFT):  # Reload the date from EXIF
+                exif_date = get_image_date(self.image_path)
+                if exif_date:
+                    self.date = exif_date
+                    self.date_text = self.date.strftime('%Y %m %d')  # Update editable date text
+                    print(f"Date reloaded from EXIF: {self.date_text}")  # Debugging
+                else:
+                    print("No EXIF date found.")  # Debugging
+                self.show_image()  # Refresh the overlay
             elif event.key == pygame.K_F2 and not (event.mod & pygame.KMOD_SHIFT):  # Toggle inclusion of prefix in the filename
                 self.use_prefix = not self.use_prefix
             elif event.key == pygame.K_F2 and (event.mod & pygame.KMOD_SHIFT):  # Clear the prefix
                 self.prefix = ""  # Clear the prefix for the current image
                 global_prefix = ""  # Clear the global prefix
                 self.show_image()  # Refresh the overlay
-            elif event.key == pygame.K_F1:  # Toggle inclusion of date in the filename
-                self.show_date = not self.show_date
             elif event.key == pygame.K_F3 and not (event.mod & pygame.KMOD_SHIFT):  # Toggle inclusion of location
                 self.include_location = not self.include_location
             elif event.key == pygame.K_F3 and (event.mod & pygame.KMOD_SHIFT):  # Reload geolocation
