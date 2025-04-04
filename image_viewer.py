@@ -141,7 +141,6 @@ class ImageViewer:
                 self.done = True  # Mark the current image as done
             elif event.key == pygame.K_F1 and not (event.mod & pygame.KMOD_SHIFT):  # Toggle inclusion of date in the filename
                 self.show_date = not self.show_date  # Toggle the date visibility
-                self.show_image()  # Refresh the overlay
             elif event.key == pygame.K_F1 and (event.mod & pygame.KMOD_SHIFT):  # Reload the date from EXIF
                 exif_date = get_image_date(self.image_path)
                 if exif_date:
@@ -150,13 +149,11 @@ class ImageViewer:
                     print(f"Date reloaded from EXIF: {self.date_text}")  # Debugging
                 else:
                     print("No EXIF date found.")  # Debugging
-                self.show_image()  # Refresh the overlay
             elif event.key == pygame.K_F2 and not (event.mod & pygame.KMOD_SHIFT):  # Toggle inclusion of prefix in the filename
                 self.use_prefix = not self.use_prefix
             elif event.key == pygame.K_F2 and (event.mod & pygame.KMOD_SHIFT):  # Clear the prefix
                 self.prefix = ""  # Clear the prefix for the current image
                 global_prefix = ""  # Clear the global prefix
-                self.show_image()  # Refresh the overlay
             elif event.key == pygame.K_F3 and not (event.mod & pygame.KMOD_SHIFT):  # Toggle inclusion of location
                 self.include_location = not self.include_location
             elif event.key == pygame.K_F3 and (event.mod & pygame.KMOD_SHIFT):  # Reload geolocation
@@ -224,8 +221,6 @@ class ImageViewer:
                 elif event.unicode and event.unicode.isprintable():
                     self.description += event.unicode  # Add the typed character
 
-            # Refresh the overlay after handling the event
-            self.show_image()
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_BACKSPACE:
                 self.backspace_key_held = False  # Stop tracking the backspace key hold
@@ -261,7 +256,7 @@ class ImageViewer:
                 self.location_edited = True  # Mark location as manually edited
             elif self.editing_field == "description":
                 self.description = self.description[:-1]
-            self.backspace_delete_count += 1  # Increment the delete count
+        self.backspace_delete_count += 1  # Increment the delete count
 
         self.show_image()  # Refresh the overlay to reflect the changes
 
@@ -326,13 +321,17 @@ class ImageViewer:
         self.show_image()
         clock = pygame.time.Clock()  # Add a clock to track delta time
 
+        needs_refresh = True  # Track if the screen needs to be refreshed
+
         while self.running:
-            delta_time = clock.tick(60) / 1000.0  # Get delta time in seconds
+            delta_time = clock.tick(120) / 1000.0  # Increase frame rate to 120 FPS for better responsiveness
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
                 else:
                     self.handle_event(event)
+                    needs_refresh = True  # Mark screen for refresh after handling an event
 
             self.update(delta_time)  # Call the update method for auto-repeat functionality
 
@@ -340,7 +339,11 @@ class ImageViewer:
                 self.handle_current_image()
                 if self.previous_image or self.next_image:
                     break  # Exit the loop to signal navigation to another image
-                self.show_image()
+                needs_refresh = True  # Mark screen for refresh after handling the current image
+
+            if needs_refresh:
+                self.show_image()  # Refresh the screen only if needed
+                needs_refresh = False  # Reset the refresh flag
 
         pygame.quit()
 
