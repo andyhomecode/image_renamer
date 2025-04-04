@@ -7,48 +7,34 @@ from renamer import build_new_filename  # Import the function
 from exif_reader import get_image_date, get_gps_coordinates  # Import GPS and date extraction
 from geolocator import reverse_geocode  # Import reverse geocoding
 
-# Global variables for prefix and location toggle
-global_prefix = ""
-global_include_location = True
-global_use_prefix = True
-
-# Global variables for toggling visibility
-global_show_date = True
-global_show_prefix = True
-global_show_location = True
-
-# Global variable for overlay visibility
-global_show_overlay = True
-
 class ImageViewer:
-    def __init__(self, folder_path):
-        global global_prefix, global_include_location, global_use_prefix, global_show_date, global_show_prefix, global_show_location, global_show_overlay
-        self.folder = Path(folder_path)
-        self.images = sorted([f for f in self.folder.iterdir() if f.suffix.lower() in ['.jpg', '.jpeg', '.png']])
-        self.index = 0
+    def __init__(self, image_path, change_entry):
+        self.image_path = image_path
+        self.change_entry = change_entry  # Dictionary containing original, proposed, and delete flag
         self.screen = None
         self.running = True
-        self.description = ""
-        self.prefix = global_prefix  # Initialize with global prefix
-        self.include_location = global_include_location  # Initialize with global location toggle
-        self.use_prefix = global_use_prefix  # Initialize with global prefix toggle
-        self.show_date = global_show_date  # Initialize with global date toggle
-        self.show_prefix = global_show_prefix  # Initialize with global prefix visibility toggle
-        self.show_location = global_show_location  # Initialize with global location visibility toggle
-        self.show_overlay = global_show_overlay  # Initialize with global overlay visibility toggle
+        self.description = change_entry.get("description", "")  # Initialize description from change_entry
+        self.prefix = change_entry.get("prefix", "")  # Initialize prefix from change_entry
+        self.include_location = change_entry.get("include_location", True)  # Initialize location toggle
+        self.use_prefix = change_entry.get("use_prefix", True)  # Initialize prefix toggle
+        self.show_date = change_entry.get("show_date", True)  # Initialize date toggle
+        self.show_overlay = True  # Initialize overlay visibility toggle
         self.done = False
-        self.city = ""  # Placeholder for city name
-        self.date = None  # Placeholder for image date
+        self.city = change_entry.get("city", "")  # Initialize city from change_entry
+        self.location_edited = change_entry.get("location_edited", False)  # Track if location was manually edited
+        self.date = change_entry.get("date", None)  # Initialize date from change_entry
         self.editing_field = "description"  # Default to editing the description
-        self.date_text = ""  # Editable date text
+        self.date_text = self.date.strftime('%Y %m %d') if self.date else ""  # Editable date text
         self.fields = ["date", "prefix", "location", "description"]  # Ordered list of fields
-        self.changes = []  # List to track changes (original name, proposed new name, delete flag)
-        for img in self.images:
-            self.changes.append({"original": img.name, "proposed": img.name, "delete": False})
+        self.previous_image = False  # Flag to indicate moving to the previous image
+        self.next_image = False  # Flag to indicate moving to the next image
+
+        # Load metadata for the current image if not already loaded or manually edited
+        if not self.date or (not self.city and not self.location_edited):
+            self.load_image_metadata()
 
     def show_image(self):
-        img_path = self.images[self.index]
-        pil_image = Image.open(img_path).convert('RGB')
+        pil_image = Image.open(self.image_path).convert('RGB')
 
         # Get screen dimensions
         screen_width, screen_height = self.screen.get_size()
@@ -88,25 +74,16 @@ class ImageViewer:
         lines = []
         # Always display the date field, but indicate whether it is included in the filename
         lines.append((f"[F1] Date {'[EXCLUDED]' if not self.show_date else ''} {'[EDITING]' if self.editing_field == 'date' else ''}: {add_cursor(date_text, 'date')}", "date"))
-        if self.show_prefix:
-            lines.append((f"[F2] Prefix {'[HIDDEN]' if not self.use_prefix else ''} {'[EDITING]' if self.editing_field == 'prefix' else ''}: {add_cursor(self.prefix, 'prefix')}", "prefix"))
-        if self.show_location:
-            lines.append((f"[F3] Location {'[HIDDEN]' if not self.include_location else ''} {'[EDITING]' if self.editing_field == 'location' else ''}: {add_cursor(self.city, 'location')}", "location"))
+        lines.append((f"[F2] Prefix {'[HIDDEN]' if not self.use_prefix else ''} {'[EDITING]' if self.editing_field == 'prefix' else ''}: {add_cursor(self.prefix, 'prefix')}", "prefix"))
+        lines.append((f"[F3] Location {'[HIDDEN]' if not self.include_location else ''} {'[EDITING]' if self.editing_field == 'location' else ''}: {add_cursor(self.city, 'location')}", "location"))
         lines.append((f"Description {'[EDITING]' if self.editing_field == 'description' else ''}: {add_cursor(self.description, 'description')}", "description"))
 
-        current_change = self.changes[self.index]
-        if current_change["delete"]:
+        if self.change_entry["delete"]:
             lines.append(("Filename: ***DELETED***", None))
         else:
-            final_name = build_new_filename(
-                self.date if self.show_date else None,
-                self.prefix if self.use_prefix else "",
-                self.city if self.include_location else "",
-                self.description.strip(),
-                ".jpg" #TODO: Use the actual file extension
-            )
+            final_name = self.build_final_filename()
             lines.append((f"Final Name: {final_name}", None))
-        lines.append(("[F4] Show/Hide Overlay   [Enter] Confirm   [Del] to Delete", None))
+        lines.append(("[shift-F3] to reload geo  [F4] Show/Hide Overlay   [Enter] Confirm   [Del] to Delete", None))
 
         font = pygame.font.SysFont(None, int(24))  # Increase font size by 20%
         for i, (line, field_name) in enumerate(lines):
@@ -115,33 +92,33 @@ class ImageViewer:
             self.screen.blit(text_surface, (20, 40 + i * 36))  # Adjust line spacing proportionally
 
     def handle_event(self, event):
-        global global_prefix, global_include_location, global_use_prefix, global_show_date, global_show_prefix, global_show_location, global_show_overlay
         if event.type == pygame.KEYDOWN:
+            print(f"Key pressed: {event.key}")  # Debugging: Check if keypresses are detected
             if event.key == pygame.K_F1:  # Toggle inclusion of date in the filename
                 self.show_date = not self.show_date
-                global_show_date = self.show_date  # Update global toggle
             elif event.key == pygame.K_F2:  # Toggle inclusion of prefix in the filename
                 self.use_prefix = not self.use_prefix
-                global_use_prefix = self.use_prefix  # Update global toggle
-            elif event.key == pygame.K_F3:  # Toggle inclusion of location in the filename
+            elif event.key == pygame.K_F3 and not (event.mod & pygame.KMOD_SHIFT):  # Toggle inclusion of location
                 self.include_location = not self.include_location
-                global_include_location = self.include_location  # Update global toggle
+            elif event.key == pygame.K_F3 and (event.mod & pygame.KMOD_SHIFT):  # Reload geolocation
+                gps = get_gps_coordinates(self.image_path)  # Get GPS coordinates
+                if gps:
+                    self.city = reverse_geocode(*gps) or ""  # Reload geolocation
+                    self.location_edited = False  # Reset manual edit flag
+                    print(f"Geolocation reloaded: {self.city}")  # Debugging
             elif event.key == pygame.K_F4:  # Toggle overlay visibility
                 self.show_overlay = not self.show_overlay
-                global_show_overlay = self.show_overlay  # Update global toggle
             elif event.key == pygame.K_DELETE:  # Toggle delete/undelete for the current file
-                current_change = self.changes[self.index]
-                if current_change["delete"]:
-                    # Undelete the file
-                    current_change["delete"] = False
-                    current_change["proposed"] = current_change["original"]  # Restore original name
+                if self.change_entry["delete"]:
+                    self.change_entry["delete"] = False
+                    self.change_entry["proposed"] = self.change_entry["original"]
                 else:
-                    # Mark the file as deleted
-                    current_change["delete"] = True
-                    current_change["proposed"] = "***DELETED***"
+                    self.change_entry["delete"] = True
+                    self.change_entry["proposed"] = "***DELETED***"
             elif event.key == pygame.K_UP:  # Move to the previous field
                 current_index = self.fields.index(self.editing_field)
                 self.editing_field = self.fields[(current_index - 1) % len(self.fields)]
+                print(f"Editing field changed to: {self.editing_field}")  # Debugging
                 if self.editing_field == "date":
                     self.date_text = self.date.strftime('%Y %m %d') if self.date else ''  # Initialize editable date text
             elif event.key == pygame.K_DOWN:  # Move to the next field
@@ -152,6 +129,13 @@ class ImageViewer:
                     except ValueError:
                         print("Invalid date format. Keeping the previous date.")
                 self.editing_field = self.fields[(current_index + 1) % len(self.fields)]
+                print(f"Editing field changed to: {self.editing_field}")  # Debugging
+            elif event.key in [pygame.K_RETURN, pygame.K_RIGHT]:  # Save changes and move to the next image
+                self.done = True
+                self.next_image = True
+            elif event.key == pygame.K_LEFT:  # Save changes and move to the previous image
+                self.done = True
+                self.previous_image = True
             elif self.editing_field == "date":  # Handle date editing
                 if event.key == pygame.K_RETURN:
                     try:
@@ -166,7 +150,6 @@ class ImageViewer:
             elif self.editing_field == "prefix":  # Handle prefix editing
                 if event.key == pygame.K_RETURN:
                     self.editing_field = "description"  # Revert to editing description
-                    global_prefix = self.prefix  # Update global prefix
                 elif event.key == pygame.K_BACKSPACE:
                     self.prefix = self.prefix[:-1]
                 elif event.unicode and event.unicode.isprintable():
@@ -176,8 +159,10 @@ class ImageViewer:
                     self.editing_field = "description"  # Revert to editing description
                 elif event.key == pygame.K_BACKSPACE:
                     self.city = self.city[:-1]
+                    self.location_edited = True  # Mark location as manually edited
                 elif event.unicode and event.unicode.isprintable():
                     self.city += event.unicode
+                    self.location_edited = True  # Mark location as manually edited
             elif self.editing_field == "description":  # Handle description editing
                 if event.key == pygame.K_RETURN:
                     self.done = True  # Confirm and proceed
@@ -185,72 +170,49 @@ class ImageViewer:
                     self.description = self.description[:-1]  # Remove the last character
                 elif event.unicode and event.unicode.isprintable():
                     self.description += event.unicode  # Add the typed character
-            else:  # Handle other events
-                if event.key == pygame.K_RETURN:
-                    self.done = True
-                elif event.key == pygame.K_RIGHT:
-                    self.index = (self.index + 1) % len(self.images)
-                    self.load_image_metadata()  # Reload metadata for the new image
-                    self.show_image()
-                    self.done = False
-                    self.description = ""
-                elif event.key == pygame.K_LEFT:
-                    self.index = (self.index - 1) % len(self.images)
-                    self.load_image_metadata()  # Reload metadata for the new image
-                    self.show_image()
-                    self.done = False
-                    self.description = ""
-                elif event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
-                    # Handle Shift+F4 and Shift+F1 for toggling visibility
-                    if event.mod & pygame.KMOD_SHIFT:
-                        if event.key == pygame.K_F4:  # Show/Hide prefix
-                            self.use_prefix = not self.use_prefix
-                            global_use_prefix = self.use_prefix  # Update global toggle
-                        elif event.key == pygame.K_F1:  # Show/Hide location
-                            self.include_location = not self.include_location
-                            global_include_location = self.include_location  # Update global toggle
+
+            # Refresh the overlay after handling the event
+            self.show_image()
 
     def load_image_metadata(self):
         """Load metadata (date, location, and refresh file name) for the current image."""
-        image_path = self.get_current_image_path()
-        self.date = get_image_date(image_path)  # Get the image date
-        gps = get_gps_coordinates(image_path)  # Get GPS coordinates
-        self.city = reverse_geocode(*gps) if gps else ""  # Reverse geocode the location
-        self.images[self.index] = image_path  # Refresh the file name in case it was changed
+        self.date = get_image_date(self.image_path)  # Get the image date
+        self.date_text = self.date.strftime('%Y %m %d') if self.date else ""  # Preload editable date text
+        if not self.location_edited:  # Only load geolocated city if not manually edited
+            gps = get_gps_coordinates(self.image_path)  # Get GPS coordinates
+            self.city = reverse_geocode(*gps) if gps else ""  # Reverse geocode the location
 
-    def get_current_image_path(self):
-        return self.images[self.index]
+    def build_final_filename(self):
+        """Build the final filename based on the current state."""
+        return build_new_filename(
+            self.date if self.show_date else None,
+            self.prefix if self.use_prefix else "",
+            self.city if self.include_location else "",
+            self.description.strip(),
+            Path(self.image_path).suffix.lower()
+        )
 
     def handle_current_image(self):
         # Update the proposed name or delete flag for the current image
-        current_change = self.changes[self.index]
         if self.done:
-            if self.description.strip().lower() == "delete":  # Mark for deletion if "delete" is entered
-                current_change["delete"] = True
-                current_change["proposed"] = None
+            if self.change_entry["delete"]:
+                self.change_entry["proposed"] = "***DELETED***"
             else:
-                full_description = f"{self.prefix} {self.description}".strip()
-                current_change["proposed"] = build_new_filename(
-                    self.date,
-                    self.city if self.include_location else "",
-                    full_description,
-                    self.images[self.index].suffix.lower()
-                )
-                current_change["delete"] = False
+                self.change_entry["proposed"] = self.build_final_filename()
+                self.change_entry["description"] = self.description.strip()
+                self.change_entry["prefix"] = self.prefix.strip()
+                self.change_entry["city"] = self.city.strip()
+                self.change_entry["date"] = self.date
+                self.change_entry["include_location"] = self.include_location
+                self.change_entry["use_prefix"] = self.use_prefix
+                self.change_entry["show_date"] = self.show_date
+                self.change_entry["location_edited"] = self.location_edited  # Save manual edit status
             self.done = False  # Reset for the next image
             self.description = ""
 
-    def generate_batch_file(self, output_path="rename_batch.bat"):
-        # Generate a batch file for renaming or deleting files
-        with open(output_path, "w") as batch_file:
-            for change in self.changes:
-                original = change["original"]
-                proposed = change["proposed"]
-                if change["delete"]:
-                    batch_file.write(f"del \"{original}\"\n")
-                elif original != proposed:
-                    batch_file.write(f"rename \"{original}\" \"{proposed}\"\n")
-        print(f"Batch file saved to {output_path}")
+    def get_changes(self):
+        # Return the updated change entry
+        return self.change_entry
 
     def run(self):
         pygame.init()
@@ -266,12 +228,15 @@ class ImageViewer:
 
             if self.done:
                 self.handle_current_image()
+                if self.previous_image or self.next_image:
+                    break  # Exit the loop to signal navigation to another image
                 self.show_image()
 
-        # Generate the batch file when exiting
-        self.generate_batch_file()
         pygame.quit()
 
 if __name__ == "__main__":
-    viewer = ImageViewer("./photos")  # Change this to your image folder
+    image_path = "./photos/sample.jpg"  # Change this to your image file
+    change_entry = {"original": "sample.jpg", "proposed": "sample.jpg", "delete": False}
+    viewer = ImageViewer(image_path, change_entry)
     viewer.run()
+    print(viewer.get_changes())

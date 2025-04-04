@@ -67,6 +67,7 @@ python main.py
   - `F1`: Include/Exclude the date in the filename.
   - `F2`: Include/Exclude the prefix in the filename.
   - `F3`: Include/Exclude the location in the filename.
+  - `Shift + F3`: Reload the geolocation from the file and update the location field.
   - `F4`: Show/Hide the overlay to view the image without distractions.
 - **Final Name**:
   - The overlay dynamically updates to show the final filename based on the current inputs and toggles.

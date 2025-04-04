@@ -1,75 +1,56 @@
 import pygame
 from image_viewer import ImageViewer
-from exif_reader import get_image_date, get_gps_coordinates
-from geolocator import reverse_geocode
-from renamer import rename_image, build_new_filename  # Import build_new_filename
+from renamer import rename_image
 
 from pathlib import Path
-from datetime import datetime
 
-class AutoImageRenamer(ImageViewer):
+class AutoImageRenamer:
     def __init__(self, folder_path, test_mode=False):
-        super().__init__(folder_path)
+        self.folder = Path(folder_path)
         self.test_mode = test_mode
+        self.changes = []  # List to track changes (original name, proposed new name, delete flag)
 
-    def handle_current_image(self):
-        image_path = self.get_current_image_path()
-        print(f"\nProcessing: {image_path.name}")
+        # Build the list of files and initialize changes
+        self.images = sorted([f for f in self.folder.iterdir() if f.suffix.lower() in ['.jpg', '.jpeg', '.png']])
+        for img in self.images:
+            self.changes.append({"original": img.name, "proposed": img.name, "delete": False, "description": ""})
 
-        # Get date
-        self.date = get_image_date(image_path)
+    def process_files(self):
+        index = 0  # Start with the first image
+        while 0 <= index < len(self.images):
+            image_path = self.images[index]
+            print(f"\nProcessing file {index + 1}/{len(self.images)}: {image_path.name}")
 
-        # Get city from GPS if available
-        gps = get_gps_coordinates(image_path)
-        self.city = reverse_geocode(*gps) if gps else ""  # Update city for overlay
+            # Pass the current file and its change entry to ImageViewer
+            viewer = ImageViewer(image_path, self.changes[index])
+            viewer.run()
 
-        # Wait for user input via overlay
-        print("Provide input using the overlay...")
-        while not self.done:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    raise SystemExit
-                self.handle_event(event)
+            # Update the change entry after processing
+            self.changes[index] = viewer.get_changes()
 
-            self.show_image()
+            # Handle navigation
+            if viewer.next_image:
+                index += 1  # Move to the next image
+            elif viewer.previous_image:
+                index -= 1  # Move to the previous image
+            else:
+                break  # Exit if neither flag is set
 
-        # Construct final name using build_new_filename
-        full_description = f"{self.prefix} {self.description}".strip()
-        final_name = build_new_filename(
-            self.date,
-            self.city if self.include_location else "",
-            full_description,
-            image_path.suffix.lower()
-        )
-
-        # TODO: Update the EXIF metadata with the edited date or other fields (e.g., location, description)
-
-        # Rename
-        rename_image(image_path, self.date, self.city if self.include_location else "", full_description, test_mode=self.test_mode)
-
-        print(f"Final Name: {final_name}")
-
-        # Reset for the next image
-        self.done = False
-        self.description = ""
+    def generate_batch_file(self, output_path="rename_batch.bat"):
+        # Generate a batch file for renaming or deleting files
+        with open(output_path, "w") as batch_file:
+            for change in self.changes:
+                original = change["original"]
+                proposed = change["proposed"]
+                if change["delete"]:
+                    batch_file.write(f"del \"{original}\"\n")
+                elif original != proposed:
+                    batch_file.write(f"rename \"{original}\" \"{proposed}\"\n")
+        print(f"Batch file saved to {output_path}")
 
     def run(self):
-        pygame.init()
-        self.screen = pygame.display.set_mode((800, 600))
-        self.show_image()
-
-        # Trigger processing for the first image
-        self.handle_current_image()
-
-        while self.running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.running = False
-                else:
-                    self.handle_event(event)
-
-        pygame.quit()
+        self.process_files()
+        self.generate_batch_file()
 
 if __name__ == "__main__":
     folder = "./photos"  # Change this to your image folder

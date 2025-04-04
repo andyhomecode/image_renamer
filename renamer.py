@@ -31,5 +31,13 @@ def rename_image(image_path: Path, date, prefix: str, city: str, description: st
 
 # For testing
 if __name__ == "__main__":
+    from datetime import datetime
+
     test_path = Path("./photos/IMG_7776.jpg")
-    print("New Filename:", build_new_filename(None, "Prefix", "New York", "My Description", ".jpg"))
+    test_date = datetime(2023, 9, 15)  # Example date
+    test_prefix = "Vacation"
+    test_city = "New York"
+    test_description = "Central Park"
+    test_ext = ".jpg"
+
+    print("New Filename:", build_new_filename(test_date, test_prefix, test_city, test_description, test_ext))
