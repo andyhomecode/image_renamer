@@ -11,10 +11,11 @@ import re
 # Global variable for the prefix
 global_prefix = ""
 global_location = ""  # Add global location variable
+global_postfix = ""  # Add global postfix variable
 
 class ImageViewer:
     def __init__(self, image_path, change_entry):
-        global global_prefix, global_location  # Access the global variables
+        global global_prefix, global_location, global_postfix  # Access the global variables
         self.image_path = image_path
         self.change_entry = change_entry  # Dictionary containing original, proposed, and delete flag
         self.screen = None
@@ -29,9 +30,10 @@ class ImageViewer:
         self.city = change_entry.get("city", global_location)  # Use the global location if none is set
         self.location_edited = change_entry.get("location_edited", False)  # Track if location was manually edited
         self.date = change_entry.get("date", None)  # Initialize date from change_entry
+        self.postfix = change_entry.get("postfix", global_postfix)  # Use the global postfix if none is set
         self.editing_field = "description"  # Default to editing the description
         self.date_text = self.date.strftime('%Y %m %d') if self.date else ""  # Editable date text
-        self.fields = ["date", "prefix", "location", "description"]  # Ordered list of fields
+        self.fields = ["date", "prefix", "location", "postfix", "description"]  # Ordered list of fields
         self.previous_image = False  # Flag to indicate moving to the previous image
         self.next_image = False  # Flag to indicate moving to the next image
         self.backspace_key_held = False  # Track if the backspace key is being held
@@ -105,6 +107,7 @@ class ImageViewer:
         lines.append((f"[F1] Date {'[EXCLUDED]' if not self.show_date else ''} {'[EDITING]' if self.editing_field == 'date' else ''}: {add_cursor(date_text, 'date')}", "date"))
         lines.append((f"[F2] Prefix {'[HIDDEN]' if not self.use_prefix else ''} {'[EDITING]' if self.editing_field == 'prefix' else ''}: {add_cursor(self.prefix, 'prefix')}", "prefix"))
         lines.append((f"[F3] Location {'[HIDDEN]' if not self.include_location else ''} {'[EDITING]' if self.editing_field == 'location' else ''}: {add_cursor(self.city, 'location')}", "location"))
+        lines.append((f"Postfix {'[EDITING]' if self.editing_field == 'postfix' else ''}: {add_cursor(self.postfix, 'postfix')}", "postfix"))  # Add postfix line
         lines.append((f"Description {'[EDITING]' if self.editing_field == 'description' else ''}: {add_cursor(self.description, 'description')}", "description"))
 
         if self.change_entry["delete"]:
@@ -135,7 +138,7 @@ class ImageViewer:
             self.screen.blit(text_surface, (20, 40 + i * line_height))  # Adjust line spacing proportionally
 
     def handle_event(self, event):
-        global global_prefix, global_location  # Access the global variables
+        global global_prefix, global_location, global_postfix  # Access the global variables
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:  # End editing and signal to write the batch file
                 self.running = False  # Stop the main loop
@@ -222,6 +225,11 @@ class ImageViewer:
                 elif event.unicode and event.unicode.isprintable():
                     self.city += event.unicode
                     self.location_edited = True  # Mark location as manually edited
+            elif self.editing_field == "postfix":  # Handle postfix editing
+                if event.key == pygame.K_RETURN:
+                    self.editing_field = "description"  # Revert to editing description
+                elif event.unicode and event.unicode.isprintable():
+                    self.postfix += event.unicode
             elif self.editing_field == "description":  # Handle description editing
                 if event.key == pygame.K_RETURN:
                     self.done = True  # Confirm and proceed
@@ -251,6 +259,8 @@ class ImageViewer:
             elif self.editing_field == "location":
                 self.city = ""
                 self.location_edited = True  # Mark location as manually edited
+            elif self.editing_field == "postfix":
+                self.postfix = ""
             elif self.editing_field == "description":
                 self.description = ""
         else:  # Otherwise, delete one character at a time
@@ -261,6 +271,8 @@ class ImageViewer:
             elif self.editing_field == "location":
                 self.city = self.city[:-1]
                 self.location_edited = True  # Mark location as manually edited
+            elif self.editing_field == "postfix":
+                self.postfix = self.postfix[:-1]
             elif self.editing_field == "description":
                 self.description = self.description[:-1]
         self.backspace_delete_count += 1  # Increment the delete count
@@ -275,6 +287,8 @@ class ImageViewer:
             return self.prefix
         elif self.editing_field == "location":
             return self.city
+        elif self.editing_field == "postfix":
+            return self.postfix
         elif self.editing_field == "description":
             return self.description
         return ""
@@ -294,12 +308,13 @@ class ImageViewer:
             self.date if self.show_date else None,
             self.prefix if self.use_prefix else "",
             self.city if self.include_location else "",
+            self.postfix.strip(),  # Include the postfix
             self.description.strip(),
             Path(self.image_path).suffix.lower()
         )
 
     def handle_current_image(self):
-        global global_prefix, global_location  # Access the global variables
+        global global_prefix, global_location, global_postfix  # Access the global variables
         # Update the proposed name or delete flag for the current image
         if self.done:
             if self.change_entry["delete"]:
@@ -311,6 +326,8 @@ class ImageViewer:
                 global_prefix = self.prefix.strip()  # Update the global prefix only when saving changes
                 self.change_entry["city"] = self.city.strip()
                 global_location = self.city.strip()  # Update the global location only when saving changes
+                self.change_entry["postfix"] = self.postfix.strip()
+                global_postfix = self.postfix.strip()  # Update the global postfix only when saving changes
                 self.change_entry["date"] = self.date
                 self.change_entry["include_location"] = self.include_location
                 self.change_entry["use_prefix"] = self.use_prefix
