@@ -10,10 +10,11 @@ import re
 
 # Global variable for the prefix
 global_prefix = ""
+global_location = ""  # Add global location variable
 
 class ImageViewer:
     def __init__(self, image_path, change_entry):
-        global global_prefix  # Access the global prefix
+        global global_prefix, global_location  # Access the global variables
         self.image_path = image_path
         self.change_entry = change_entry  # Dictionary containing original, proposed, and delete flag
         self.screen = None
@@ -25,7 +26,7 @@ class ImageViewer:
         self.show_date = change_entry.get("show_date", True)  # Initialize date toggle
         self.show_overlay = True  # Initialize overlay visibility toggle
         self.done = False
-        self.city = change_entry.get("city", "")  # Initialize city from change_entry
+        self.city = change_entry.get("city", global_location)  # Use the global location if none is set
         self.location_edited = change_entry.get("location_edited", False)  # Track if location was manually edited
         self.date = change_entry.get("date", None)  # Initialize date from change_entry
         self.editing_field = "description"  # Default to editing the description
@@ -113,7 +114,7 @@ class ImageViewer:
             lines.append((f"Final Name: {final_name}", None))  # Filename line
 
         # Instruction lines
-        lines.append(("[Del] to delete, shift F1-F3 reload/clear", None))
+        lines.append(("[Del] to delete, shift F1-F3 reload/clear, ctrl F3 for global city", None))
         lines.append(("[L/R] to nav  [F4] Show/Hide Overlay [Del] to delete and [Esc] to end", None))
 
         # Calculate overlay height based on the number of lines
@@ -134,7 +135,7 @@ class ImageViewer:
             self.screen.blit(text_surface, (20, 40 + i * line_height))  # Adjust line spacing proportionally
 
     def handle_event(self, event):
-        global global_prefix  # Access the global prefix
+        global global_prefix, global_location  # Access the global variables
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:  # End editing and signal to write the batch file
                 self.running = False  # Stop the main loop
@@ -154,13 +155,19 @@ class ImageViewer:
             elif event.key == pygame.K_F2 and (event.mod & pygame.KMOD_SHIFT):  # Clear the prefix
                 self.prefix = ""  # Clear the prefix for the current image
                 global_prefix = ""  # Clear the global prefix
-            elif event.key == pygame.K_F3 and not (event.mod & pygame.KMOD_SHIFT):  # Toggle inclusion of location
+            elif event.key == pygame.K_F3 and not (event.mod & pygame.KMOD_SHIFT) and not (event.mod & pygame.KMOD_CTRL):  
+                # Toggle inclusion of location (hide/show)
                 self.include_location = not self.include_location
-            elif event.key == pygame.K_F3 and (event.mod & pygame.KMOD_SHIFT):  # Reload geolocation
+            elif event.key == pygame.K_F3 and (event.mod & pygame.KMOD_SHIFT):  
+                # Reload geolocation
                 gps = get_gps_coordinates(self.image_path)  # Get GPS coordinates
                 if gps:
                     self.city = reverse_geocode(*gps) or ""  # Reload geolocation
                     self.location_edited = False  # Reset manual edit flag
+            elif event.key == pygame.K_F3 and (event.mod & pygame.KMOD_CTRL):  
+                # Use global location
+                self.city = global_location  # Set the city to the global location
+                self.location_edited = False  # Reset manual edit flag
             elif event.key == pygame.K_F4:  # Toggle overlay visibility
                 self.show_overlay = not self.show_overlay
             elif event.key == pygame.K_DELETE:  # Toggle delete/undelete for the current file and move to the next image
@@ -292,7 +299,7 @@ class ImageViewer:
         )
 
     def handle_current_image(self):
-        global global_prefix  # Access the global prefix
+        global global_prefix, global_location  # Access the global variables
         # Update the proposed name or delete flag for the current image
         if self.done:
             if self.change_entry["delete"]:
@@ -303,6 +310,7 @@ class ImageViewer:
                 self.change_entry["prefix"] = self.prefix.strip()
                 global_prefix = self.prefix.strip()  # Update the global prefix only when saving changes
                 self.change_entry["city"] = self.city.strip()
+                global_location = self.city.strip()  # Update the global location only when saving changes
                 self.change_entry["date"] = self.date
                 self.change_entry["include_location"] = self.include_location
                 self.change_entry["use_prefix"] = self.use_prefix
