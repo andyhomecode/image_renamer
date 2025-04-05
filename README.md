@@ -125,7 +125,7 @@ python main.py ./photos --wildcard "IMG_*"
 
 ## 📌 TODOs
 
-- [ ] also none.
+- [ ] Make an option to use the location last saved and overwrite current location
 
 ---
 
