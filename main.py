@@ -8,20 +8,25 @@ import argparse
 import platform
 from datetime import datetime  # Add import for current date and time
 import fnmatch  # Add import for wildcard matching
+import re  # Add import for regular expressions
 
 VERSION = "0.1"
 
 class AutoImageRenamer:
-    def __init__(self, folder_path, test_mode=False, wildcard="*"):
+    def __init__(self, folder_path, test_mode=False, wildcard="*", skip=False):
         self.folder = Path(folder_path)
         self.test_mode = test_mode
         self.wildcard = wildcard  # Store the wildcard pattern
+        self.skip = skip  # Store the skip flag
         self.changes = []  # List to track changes (original name, proposed new name, delete flag)
 
         # Build the list of files and initialize changes
+        date_pattern = re.compile(r"^\d{4} \d{2} \d{2}")  # Regex to match "YYYY MM DD"
         self.images = sorted([
             f for f in self.folder.iterdir()
-            if f.suffix.lower() in ['.jpg', '.jpeg', '.png'] and fnmatch.fnmatch(f.name, self.wildcard)
+            if f.suffix.lower() in ['.jpg', '.jpeg', '.png']
+            and fnmatch.fnmatch(f.name, self.wildcard)
+            and not (self.skip and date_pattern.match(f.stem))  # Skip files starting with a date if skip is True
         ])
         for img in self.images:
             self.changes.append({"original": img.name, "proposed": img.name, "delete": False, "description": ""})
@@ -101,9 +106,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=f"Auto Image Renamer v{VERSION}: Rename images interactively based on EXIF data and user input.")
     parser.add_argument("folder", help="Path to the folder containing images to rename.")
     parser.add_argument("--wildcard", default="*", help="Optional filename wildcard filter (e.g., 'IMG_*').")
+    parser.add_argument("--skip", action="store_true", help="Skip files that already start with a date formatted as 'YYYY MM DD'.")
     args = parser.parse_args()
 
     folder = args.folder
     wildcard = args.wildcard
-    app = AutoImageRenamer(folder_path=folder, test_mode=True, wildcard=wildcard)
+    skip = args.skip
+    app = AutoImageRenamer(folder_path=folder, test_mode=True, wildcard=wildcard, skip=skip)
     app.run()

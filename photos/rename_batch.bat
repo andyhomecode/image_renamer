@@ -1,3 +1,3 @@
-:: Generated from image_renamer.py on 2025-04-04 17:11:16
+:: Generated from image_renamer.py on 2025-04-05 19:34:26
 mkdir "deleted"
-rename "IMG_7776.JPG" "2024 02 25 lkdsflkdsjflkdsflkjdsalfjdsaflk.jpg"
+rename "2025 01 03 birthday pants label.JPG" "2025 01 03 birthday pants label.jpg"
